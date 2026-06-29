@@ -1,6 +1,6 @@
-# Jimmy’s Home Bar
+# Jimmy’s Bar Menu
 
-一个手机优先的私人鸡尾酒菜单。朋友可以浏览酒单、选择甜度和备注、加入购物车，并复制订单到微信。
+一个手机优先的私人 Home Bar 互动酒单原型。当前设计分支使用 Vite + React 重做视觉：复古纸张、深蓝黄昏、暖黄色路灯和手绘鸡尾酒卡片。
 
 线上菜单：<https://zxieau.github.io/homebar-menu/>
 
@@ -11,15 +11,16 @@
 在项目目录运行：
 
 ```bash
-python3 -m http.server 8000
+pnpm install
+pnpm dev
 ```
 
-然后访问 `http://localhost:8000`。
+然后访问 `http://127.0.0.1:5173/homebar-menu/`。
 
 ## 修改菜单
 
-酒品、分类和售罄状态都在 `data.js` 中维护。将某款酒的 `available` 改为 `false`，页面就会显示“今晚售罄”并禁止点单。
+酒品、分类、口味标签和详情页文案都在 `src/data/menu.js` 中维护。
 
 ## 部署
 
-网站为纯静态页面，可直接从仓库根目录部署到 GitHub Pages。
+运行 `pnpm build` 生成 `dist/`。Vite 已配置 GitHub Pages 项目路径 `/homebar-menu/`。

@@ -3,121 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#100d0b" />
-    <meta name="description" content="Jimmy’s Home Bar 私人鸡尾酒菜单" />
-    <title>Jimmy’s Home Bar</title>
+    <meta name="theme-color" content="#5e6f9f" />
+    <meta name="description" content="Jimmy’s Bar Menu 手绘复古 Home Bar 点单原型" />
+    <title>Jimmy’s Bar Menu</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=2" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Noto+Serif+SC:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <a class="skip-link" href="#menu">跳到酒单</a>
-
-    <header class="hero">
-      <div class="hero__noise" aria-hidden="true"></div>
-      <div class="hero__content">
-        <div class="hero__eyebrow"><span></span> PRIVATE POUR <span></span></div>
-        <p class="hero__monogram" aria-hidden="true">J</p>
-        <h1>Jimmy’s<br /><em>Home Bar</em></h1>
-        <p class="hero__intro">今晚想喝点什么？从酸甜明亮到醇厚深邃，每一杯都为朋友而调。</p>
-        <a class="hero__cta" href="#menu">翻开酒单 <span aria-hidden="true">↓</span></a>
-      </div>
-    </header>
-
-    <main id="menu" class="menu-shell">
-      <div class="menu-heading">
-        <p class="section-kicker">THE COCKTAIL LIST</p>
-        <h2>今晚的酒单</h2>
-        <p>Premium spirits · Fresh citrus · House-made syrup</p>
-      </div>
-
-      <nav class="category-nav" aria-label="酒单分类">
-        <div id="category-tabs" class="category-tabs"></div>
-      </nav>
-
-      <div id="menu-content" class="menu-content" aria-live="polite"></div>
-    </main>
-
-    <footer class="site-footer">
-      <p class="site-footer__brand">Jimmy’s Home Bar</p>
-      <p>Drink slowly. Stay curious.</p>
-      <p class="site-footer__note">仅供成年朋友小聚，请理性饮酒。</p>
-    </footer>
-
-    <button id="cart-bar" class="cart-bar" type="button" aria-controls="cart-drawer" hidden>
-      <span><b id="cart-count">0</b> 杯已选择</span>
-      <span>查看订单 <span aria-hidden="true">→</span></span>
-    </button>
-
-    <div id="modal-layer" class="layer" hidden>
-      <button class="layer__backdrop" type="button" data-close aria-label="关闭"></button>
-      <section id="order-modal" class="sheet order-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <button class="sheet__close" type="button" data-close aria-label="关闭">×</button>
-        <div class="order-sheet__heading">
-          <p id="modal-category" class="section-kicker"></p>
-          <h2 id="modal-title"></h2>
-          <p id="modal-en" class="order-sheet__en"></p>
-        </div>
-
-        <form id="order-form">
-          <input id="modal-id" type="hidden" />
-          <div id="sweetness-field" class="form-field" hidden>
-            <span class="form-label">甜度</span>
-            <div id="sweetness-options" class="choice-row"></div>
-          </div>
-          <label class="form-field">
-            <span class="form-label">备注 <small>选填</small></span>
-            <textarea id="order-note" maxlength="60" rows="2" placeholder="例如：少冰、柠檬多一点"></textarea>
-          </label>
-          <div class="order-actions">
-            <div class="quantity" aria-label="数量">
-              <button id="qty-minus" type="button" aria-label="减少数量">−</button>
-              <output id="qty-value" aria-live="polite">1</output>
-              <button id="qty-plus" type="button" aria-label="增加数量">＋</button>
-            </div>
-            <button class="primary-button" type="submit">加入订单</button>
-          </div>
-        </form>
-      </section>
-    </div>
-
-    <div id="cart-layer" class="layer" hidden>
-      <button class="layer__backdrop" type="button" data-cart-close aria-label="关闭"></button>
-      <aside id="cart-drawer" class="sheet cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-title">
-        <div class="cart-drawer__header">
-          <div>
-            <p class="section-kicker">YOUR ORDER</p>
-            <h2 id="cart-title">今晚喝这些</h2>
-          </div>
-          <button class="sheet__close" type="button" data-cart-close aria-label="关闭">×</button>
-        </div>
-        <div id="cart-items" class="cart-items"></div>
-        <div id="cart-empty" class="cart-empty" hidden>
-          <p>酒杯还是空的。</p>
-          <button type="button" data-cart-close>继续看看酒单</button>
-        </div>
-        <div id="cart-footer" class="cart-footer">
-          <p>确认后复制订单，再粘贴到微信发给 Jimmy。</p>
-          <button id="copy-order" class="primary-button primary-button--full" type="button">复制微信订单</button>
-        </div>
-      </aside>
-    </div>
-
-    <div id="fallback-layer" class="layer" hidden>
-      <button class="layer__backdrop" type="button" data-fallback-close aria-label="关闭"></button>
-      <section class="sheet fallback-sheet" role="dialog" aria-modal="true" aria-labelledby="fallback-title">
-        <button class="sheet__close" type="button" data-fallback-close aria-label="关闭">×</button>
-        <p class="section-kicker">COPY MANUALLY</p>
-        <h2 id="fallback-title">手动复制订单</h2>
-        <p>当前浏览器无法自动复制，请长按选择下面的文字。</p>
-        <textarea id="fallback-text" readonly rows="12"></textarea>
-      </section>
-    </div>
-
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-    <script src="./data.js?v=1"></script>
-    <script src="./app.js?v=2"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
