@@ -3,27 +3,27 @@ window.HOMEBAR_DATA = {
   categories: [
     {
       id: "sweet-sour",
-      shortName: "酸甜",
-      name: "酸甜平衡",
-      en: "Sweet & Sour",
+      shortName: "酸甜果香",
+      name: "核心主打 · 酸甜果香系列",
+      en: "Sweet & Sour Balance",
       icon: "✦",
-      intro: "柑橘酸度、糖浆圆润感和基酒香气的平衡派。"
+      intro: "新鲜柑橘的明亮酸度，与恰到好处的甜美相遇。圆润、舒展，也最容易让夜晚进入状态。"
     },
     {
       id: "refreshing",
-      shortName: "清爽",
-      name: "轻松畅饮",
-      en: "Refreshing",
+      shortName: "轻松畅饮",
+      name: "轻松畅饮 · 气泡解渴系列",
+      en: "Refreshing & Fizzy",
       icon: "◇",
-      intro: "气泡、青柠和草本香气，适合先把夜晚打开。"
+      intro: "轻盈的气泡托起杜松子与青柠香气，清爽、明快，是聊天时不知不觉喝完的一杯。"
     },
     {
       id: "strong",
-      shortName: "烈性",
-      name: "硬核经典",
-      en: "Strong",
+      shortName: "醇厚烈酒",
+      name: "醇厚烈酒 · 硬核经典系列",
+      en: "Strong & High-Proof",
       icon: "◆",
-      intro: "酒体更厚，后劲更明显，适合慢慢喝。"
+      intro: "酒体更厚，香气更深。适合慢慢品味，也适合把今晚的故事讲得更长一点。"
     }
   ],
   drinks: [
@@ -33,11 +33,7 @@ window.HOMEBAR_DATA = {
       category: "sweet-sour",
       nameZh: "威士忌酸",
       nameEn: "Whiskey Sour",
-      baseSpirit: "波本",
-      flavors: ["柠檬酸香", "绵密泡沫", "圆润"],
-      strength: 3,
-      strengthLabel: "中等",
-      description: "美格波本威士忌的橡木香碰撞新鲜黄柠檬，顶层覆有细腻蛋清泡沫。入口丝滑，酸甜清楚，尾段有温柔的威士忌香。",
+      description: "美格波本威士忌的木质橡木香碰撞黄柠檬果酸，顶层覆有细腻如云朵般的绵密蛋清泡沫。丝滑、饱满，层次深邃。",
       image: "./assets/images/whiskey-sour.webp",
       available: true,
       sweetnessOptions: ["标准甜", "少甜"]
@@ -48,11 +44,7 @@ window.HOMEBAR_DATA = {
       category: "sweet-sour",
       nameZh: "经典大吉利",
       nameEn: "Classic Daiquiri",
-      baseSpirit: "白朗姆",
-      flavors: ["青柠锐酸", "甘蔗清甜", "干净"],
-      strength: 3,
-      strengthLabel: "中等",
-      description: "白朗姆与鲜榨青柠的纯粹组合，酸甜比例直接决定它的灵魂。冰凉、利落，带一点甘蔗的清甜。",
+      description: "白朗姆酒与鲜榨青柠汁的纯粹博弈，酸甜鸡尾酒的“试金石”。冰凉透厉，带着甘蔗的清甜与青柠的锐酸。",
       image: "./assets/images/classic-daiquiri.webp",
       available: true,
       sweetnessOptions: ["标准甜", "少甜"]
@@ -63,11 +55,7 @@ window.HOMEBAR_DATA = {
       category: "sweet-sour",
       nameZh: "经典琴蕾",
       nameEn: "Classic Gimlet",
-      baseSpirit: "金酒",
-      flavors: ["杜松草本", "青柠酸甜", "冷冽"],
-      strength: 3,
-      strengthLabel: "中等",
-      description: "金酒的杜松子与草本冷冽感，被青柠的酸甜完整包裹。结构紧凑，锋芒清楚。",
+      description: "添加利金酒强烈的杜松子草本冷冽风味，被青柠的酸甜完整包裹。结构紧凑，锋芒毕露。",
       image: "./assets/images/classic-gimlet.webp",
       available: true,
       sweetnessOptions: ["标准甜", "少甜"]
@@ -78,11 +66,7 @@ window.HOMEBAR_DATA = {
       category: "sweet-sour",
       nameZh: "白佳人",
       nameEn: "White Lady",
-      baseSpirit: "金酒",
-      flavors: ["橙皮香", "轻柔", "酸甜"],
-      strength: 3,
-      strengthLabel: "中等",
-      description: "金酒搭配君度橙酒，带出清晰的橙皮精油香。入口轻柔，柑橘感明亮，整体比名字更有性格。",
+      description: "传世女士开胃酒。添加利金酒搭配君度橙酒的浓郁橙皮精油，入口如天鹅绒般轻柔丝滑，柑橘香气高级奢华。",
       image: "./assets/images/white-lady.webp",
       available: true,
       sweetnessOptions: ["标准甜", "少甜"]
@@ -93,11 +77,7 @@ window.HOMEBAR_DATA = {
       category: "sweet-sour",
       nameZh: "经典玛格丽特",
       nameEn: "Classic Margarita",
-      baseSpirit: "龙舌兰",
-      flavors: ["青柠明快", "微咸", "橙香"],
-      strength: 3,
-      strengthLabel: "中等",
-      description: "银龙舌兰、君度橙酒与青柠汁的经典组合。盐边带来一点微咸，让酸度更亮，尾段有淡淡龙舌兰气息。",
+      description: "豪帅快活银龙舌兰、君度橙酒与青柠汁的经典重组，杯缘饰以半圈手工细海盐边。微咸、微酸，烟熏感交织。",
       image: "./assets/images/classic-margarita.webp",
       available: true,
       sweetnessOptions: ["标准甜", "少甜"]
@@ -108,11 +88,7 @@ window.HOMEBAR_DATA = {
       category: "refreshing",
       nameZh: "金汤力",
       nameEn: "Gin & Tonic",
-      baseSpirit: "金酒",
-      flavors: ["气泡清爽", "青柠", "微苦"],
-      strength: 2,
-      strengthLabel: "低中",
-      description: "金酒、冷藏汤力水与新鲜青柠的极简组合。气泡感清爽，杜松子香气清楚，适合第一杯。",
+      description: "添加利金酒、冷藏怡泉汤力水与新鲜青柠角的极简艺术。强烈的碳酸气泡口感，伴随杜松子清香与微苦回甘。",
       image: "./assets/images/gin-tonic.webp",
       available: true,
       sweetnessOptions: []
@@ -123,11 +99,7 @@ window.HOMEBAR_DATA = {
       category: "strong",
       nameZh: "长岛冰茶",
       nameEn: "Long Island Iced Tea",
-      baseSpirit: "多基酒",
-      flavors: ["可乐柠檬", "顺滑", "后劲强"],
-      strength: 5,
-      strengthLabel: "很高",
-      description: "多款基酒与橙酒汇在一起，伪装成温和的冰茶色泽。喝起来顺，但后劲明确，不适合太快。",
+      description: "汇聚四大基酒与君度橙酒的烈性炸弹，伪装成温和红茶色泽。顺滑易饮，带有一丝可乐与柠檬的酸甜，后劲极强。",
       image: "./assets/images/long-island-iced-tea.webp",
       available: true,
       sweetnessOptions: []
@@ -138,11 +110,7 @@ window.HOMEBAR_DATA = {
       category: "strong",
       nameZh: "神风特攻队",
       nameEn: "Kamikaze",
-      baseSpirit: "伏特加",
-      flavors: ["青柠炸裂", "橙香", "冰冷"],
-      strength: 4,
-      strengthLabel: "高",
-      description: "伏特加作为干净基底，放大君度橙酒和青柠的酸香。入口利落、冰凉，适合想要直接一点的朋友。",
+      description: "以高纯度斯米诺伏特加为纯净基底，无限放大君度橙酒的清香与青柠的炸裂酸度。干净利落，冰凉刺激。",
       image: "./assets/images/kamikaze.webp",
       available: true,
       sweetnessOptions: []
@@ -153,73 +121,10 @@ window.HOMEBAR_DATA = {
       category: "strong",
       nameZh: "古典鸡尾酒",
       nameEn: "Old Fashioned",
-      baseSpirit: "波本",
-      flavors: ["橙皮", "苦甜", "木质香"],
-      strength: 4,
-      strengthLabel: "高",
-      description: "波本、糖浆与苦精在冰块融化中慢慢交融。香气浓烈，橙皮精油迷人，是适合慢慢喝的一杯。",
+      description: "鸡尾酒的永恒基石。美格波本威士忌与莫林糖浆、安戈斯图拉苦精在冰块融化中缓慢交融，香气浓烈深邃，橙皮精油迷人。",
       image: "./assets/images/old-fashioned.webp",
       available: true,
       sweetnessOptions: []
     }
-  ],
-  snacks: [
-    {
-      id: "fries",
-      nameZh: "薯条",
-      nameEn: "French Fries",
-      icon: "🍟",
-      description: "热的、脆的、适合等第一杯酒的时候吃。",
-      flavors: ["咸香", "酥脆"],
-      available: true
-    },
-    {
-      id: "popcorn-chicken",
-      nameZh: "鸡米花",
-      nameEn: "Popcorn Chicken",
-      icon: "🍗",
-      description: "一口一个的小炸物，适合配清爽或酸甜型鸡尾酒。",
-      flavors: ["酥脆", "咸鲜"],
-      available: true
-    }
-  ],
-  specialBuilder: {
-    moods: {
-      fresh: {
-        label: "清爽",
-        bases: ["金酒", "伏特加", "白朗姆"],
-        mixers: ["汤力水", "苏打水", "青柠汁"],
-        flavor: "清爽气泡、柑橘和一点草本香",
-        strength: 2
-      },
-      sour: {
-        label: "酸甜",
-        bases: ["波本", "白朗姆", "龙舌兰"],
-        mixers: ["黄柠檬汁", "青柠汁", "糖浆"],
-        flavor: "明亮酸度、圆润甜感和干净尾韵",
-        strength: 3
-      },
-      mellow: {
-        label: "醇厚",
-        bases: ["波本", "金酒", "龙舌兰"],
-        mixers: ["橙酒", "糖浆", "苦精"],
-        flavor: "更厚的酒体、橙皮香和微微苦甜",
-        strength: 4
-      },
-      wild: {
-        label: "来点狠的",
-        bases: ["伏特加", "波本", "多基酒"],
-        mixers: ["君度", "青柠汁", "可乐"],
-        flavor: "入口顺，后劲明显，带一点危险的甜感",
-        strength: 5
-      }
-    },
-    atmospheres: {
-      sunset: "日落",
-      rain: "雨夜",
-      birthday: "生日",
-      surprise: "随便玩点新的"
-    },
-    names: ["暮色灯影", "午夜柑橘", "雨巷酸甜", "金色偶然", "第七码头", "紫雾手记", "Jimmy 的临场发挥"]
-  }
+  ]
 };

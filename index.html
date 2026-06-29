@@ -3,65 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#12101f" />
+    <meta name="theme-color" content="#100d0b" />
     <meta name="description" content="Jimmy’s Home Bar 私人鸡尾酒菜单" />
     <title>Jimmy’s Home Bar</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='48' font-size='48'%3E%F0%9F%8D%B8%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Noto+Serif+SC:wght@500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=3" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=2" />
   </head>
   <body>
-    <a class="skip-link" href="#menu-list">跳到酒单</a>
+    <a class="skip-link" href="#menu">跳到酒单</a>
 
     <header class="hero">
       <div class="hero__noise" aria-hidden="true"></div>
-      <div class="hero__lamp hero__lamp--left" aria-hidden="true"></div>
-      <div class="hero__lamp hero__lamp--right" aria-hidden="true"></div>
       <div class="hero__content">
-        <div class="hero__ornament" aria-hidden="true">✦  ✧  ✦</div>
-        <div class="hero__eyebrow"><span></span> PRIVATE BAR MENU <span></span></div>
-        <h1>Jimmy’s<br /><em>Bar Menu</em></h1>
-        <p class="hero__script">about the journey</p>
-        <p class="hero__intro">暮色收进杯底，街灯刚刚亮起。</p>
-        <a class="hero__cta" href="#tonight">今晚喝什么 <span aria-hidden="true">↓</span></a>
+        <div class="hero__eyebrow"><span></span> PRIVATE POUR <span></span></div>
+        <p class="hero__monogram" aria-hidden="true">J</p>
+        <h1>Jimmy’s<br /><em>Home Bar</em></h1>
+        <p class="hero__intro">今晚想喝点什么？从酸甜明亮到醇厚深邃，每一杯都为朋友而调。</p>
+        <a class="hero__cta" href="#menu">翻开酒单 <span aria-hidden="true">↓</span></a>
       </div>
     </header>
 
     <main id="menu" class="menu-shell">
-      <section id="tonight" class="tonight-panel" aria-labelledby="tonight-title">
-        <p class="section-kicker">TONIGHT</p>
-        <h2 id="tonight-title">今晚入口 <span class="heading-en">Choose Your Pour</span></h2>
-        <div class="entry-scroller" aria-label="今晚入口">
-          <a class="entry-card" href="#menu-list">
-            <span>01</span>
-            <strong>我知道想喝什么</strong>
-            <small>直接翻完整酒单</small>
-          </a>
-          <button class="entry-card" type="button" data-open-special>
-            <span>02</span>
-            <strong>帮我随机调一杯</strong>
-            <small>非菜单特调</small>
-          </button>
-          <a class="entry-card" href="#snacks">
-            <span>03</span>
-            <strong>想先来点小食</strong>
-            <small>薯条 / 鸡米花</small>
-          </a>
-          <a class="entry-card" href="#strong">
-            <span>04</span>
-            <strong>今晚来点狠的</strong>
-            <small>烈性经典</small>
-          </a>
-        </div>
-      </section>
-
-      <section id="menu-list" class="menu-heading">
+      <div class="menu-heading">
         <p class="section-kicker">THE COCKTAIL LIST</p>
-        <h2>完整酒单</h2>
-        <p>Swipe the night slowly · Pick the one that looks right</p>
-      </section>
+        <h2>今晚的酒单</h2>
+        <p>Premium spirits · Fresh citrus · House-made syrup</p>
+      </div>
 
       <nav class="category-nav" aria-label="酒单分类">
         <div id="category-tabs" class="category-tabs"></div>
@@ -72,10 +41,12 @@
 
     <footer class="site-footer">
       <p class="site-footer__brand">Jimmy’s Home Bar</p>
+      <p>Drink slowly. Stay curious.</p>
+      <p class="site-footer__note">仅供成年朋友小聚，请理性饮酒。</p>
     </footer>
 
     <button id="cart-bar" class="cart-bar" type="button" aria-controls="cart-drawer" hidden>
-      <span><b id="cart-count">0</b> 项已选择</span>
+      <span><b id="cart-count">0</b> 杯已选择</span>
       <span>查看订单 <span aria-hidden="true">→</span></span>
     </button>
 
@@ -83,27 +54,21 @@
       <button class="layer__backdrop" type="button" data-close aria-label="关闭"></button>
       <section id="order-modal" class="sheet order-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <button class="sheet__close" type="button" data-close aria-label="关闭">×</button>
-        <div class="order-visual">
-          <img id="modal-image" src="" alt="" />
-        </div>
         <div class="order-sheet__heading">
           <p id="modal-category" class="section-kicker"></p>
           <h2 id="modal-title"></h2>
           <p id="modal-en" class="order-sheet__en"></p>
         </div>
-        <div id="modal-metrics" class="detail-metrics"></div>
-        <p id="modal-description" class="detail-description"></p>
 
         <form id="order-form">
           <input id="modal-id" type="hidden" />
-          <input id="modal-type" type="hidden" />
           <div id="sweetness-field" class="form-field" hidden>
             <span class="form-label">甜度</span>
             <div id="sweetness-options" class="choice-row"></div>
           </div>
           <label class="form-field">
             <span class="form-label">备注 <small>选填</small></span>
-            <textarea id="order-note" maxlength="80" rows="2" placeholder="例如：少冰、柠檬多一点"></textarea>
+            <textarea id="order-note" maxlength="60" rows="2" placeholder="例如：少冰、柠檬多一点"></textarea>
           </label>
           <div class="order-actions">
             <div class="quantity" aria-label="数量">
@@ -111,53 +76,9 @@
               <output id="qty-value" aria-live="polite">1</output>
               <button id="qty-plus" type="button" aria-label="增加数量">＋</button>
             </div>
-            <button class="primary-button" type="submit">今晚就喝这杯</button>
+            <button class="primary-button" type="submit">加入订单</button>
           </div>
         </form>
-      </section>
-    </div>
-
-    <div id="special-layer" class="layer" hidden>
-      <button class="layer__backdrop" type="button" data-special-close aria-label="关闭"></button>
-      <section class="sheet special-sheet" role="dialog" aria-modal="true" aria-labelledby="special-title">
-        <button class="sheet__close" type="button" data-special-close aria-label="关闭">×</button>
-        <p class="section-kicker">BARTENDER'S WHIM</p>
-        <h2 id="special-title">随机特调</h2>
-        <p class="special-sheet__intro">不从酒单里选，临场生成一杯今晚限定。</p>
-        <form id="special-form" class="special-form">
-          <div class="form-field">
-            <span class="form-label">今晚想要</span>
-            <div class="choice-grid">
-              <label class="choice-pill"><input type="radio" name="mood" value="fresh" checked /><span>清爽</span></label>
-              <label class="choice-pill"><input type="radio" name="mood" value="sour" /><span>酸甜</span></label>
-              <label class="choice-pill"><input type="radio" name="mood" value="mellow" /><span>醇厚</span></label>
-              <label class="choice-pill"><input type="radio" name="mood" value="wild" /><span>来点狠的</span></label>
-            </div>
-          </div>
-          <div class="form-field">
-            <span class="form-label">酒精感</span>
-            <div class="choice-row">
-              <label class="choice-pill"><input type="radio" name="strength" value="light" /><span>轻松</span></label>
-              <label class="choice-pill"><input type="radio" name="strength" value="standard" checked /><span>标准</span></label>
-              <label class="choice-pill"><input type="radio" name="strength" value="bold" /><span>有后劲</span></label>
-            </div>
-          </div>
-          <div class="form-field">
-            <span class="form-label">今日氛围</span>
-            <div class="choice-grid">
-              <label class="choice-pill"><input type="radio" name="atmosphere" value="sunset" checked /><span>日落</span></label>
-              <label class="choice-pill"><input type="radio" name="atmosphere" value="rain" /><span>雨夜</span></label>
-              <label class="choice-pill"><input type="radio" name="atmosphere" value="birthday" /><span>生日</span></label>
-              <label class="choice-pill"><input type="radio" name="atmosphere" value="surprise" /><span>随便玩点新的</span></label>
-            </div>
-          </div>
-          <label class="form-field">
-            <span class="form-label">幸运数字 <small>选填</small></span>
-            <input id="lucky-number" class="text-input" inputmode="numeric" maxlength="2" placeholder="例如：7" />
-          </label>
-          <button class="primary-button primary-button--full" type="submit">生成今晚特调</button>
-        </form>
-        <div id="special-result" class="special-result" hidden></div>
       </section>
     </div>
 
@@ -167,13 +88,13 @@
         <div class="cart-drawer__header">
           <div>
             <p class="section-kicker">YOUR ORDER</p>
-            <h2 id="cart-title">今晚点这些</h2>
+            <h2 id="cart-title">今晚喝这些</h2>
           </div>
           <button class="sheet__close" type="button" data-cart-close aria-label="关闭">×</button>
         </div>
         <div id="cart-items" class="cart-items"></div>
         <div id="cart-empty" class="cart-empty" hidden>
-          <p>还没有点单。</p>
+          <p>酒杯还是空的。</p>
           <button type="button" data-cart-close>继续看看酒单</button>
         </div>
         <div id="cart-footer" class="cart-footer">
@@ -196,7 +117,7 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script src="./data.js?v=3"></script>
-    <script src="./app.js?v=3"></script>
+    <script src="./data.js?v=1"></script>
+    <script src="./app.js?v=2"></script>
   </body>
 </html>
