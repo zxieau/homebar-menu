@@ -4,6 +4,9 @@ import { recipes } from "./data/recipes.js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase.js";
 
 const STORAGE_KEY = "jimmys-homebar-orders-v3";
+const SUBMITTED_TICKET_KEY = "jimmys-homebar-submitted-ticket-v1";
+const GUEST_NAME_KEY = "jimmys-bar-guest-name";
+const GUEST_ID_KEY = "jimmys-bar-guest-id";
 const ADMIN_SESSION_KEY = "jimmys-homebar-admin-unlocked";
 const cancelledStatus = { id: "cancelled", labelEn: "Cancelled", labelZh: "已取消" };
 const adminStatusSteps = [...statusSteps, cancelledStatus];
@@ -25,10 +28,23 @@ function PaperMarks() {
 
 function HeroIllustration() {
   return (
-    <figure className="hero-art" aria-label="黄昏英伦街道路灯、纸张菜单和私人酒吧氛围插画">
-      <img src={assetUrl("assets/hero/jimmys-bar-hero-v1.webp")} alt="" aria-hidden="true" />
-      <figcaption>Jimmy’s Home Bar</figcaption>
-    </figure>
+    <section className="hero-poster" aria-labelledby="hero-title">
+      <img
+        className="hero-artwork"
+        src={assetUrl("assets/hero/jimmys-bar-hero-v2.webp")}
+        alt=""
+        aria-hidden="true"
+      />
+      <div className="hero-handbill">
+        <PaperMarks />
+        <p className="overline">Private Home Bar</p>
+        <h1 id="hero-title">Jimmy’s Bar</h1>
+        <p className="hero-subtitle">Menu after dusk</p>
+        <div className="rule-line" />
+        <p className="hero-copy">街灯亮起后，选一杯今晚的 pour。</p>
+        <a href="#menu" className="hero-link">Start the Menu</a>
+      </div>
+    </section>
   );
 }
 
@@ -36,25 +52,15 @@ function HeroPoster() {
   return (
     <header className="hero">
       <HeroIllustration />
-      <section className="hero-ticket" aria-labelledby="hero-title">
-        <PaperMarks />
-        <p className="overline">Private Home Bar</p>
-        <h1 id="hero-title">Jimmy’s Bar</h1>
-        <div className="rule-line" />
-        <p>After dusk. Pick a pour.</p>
-        <a href="#menu" className="hero-link">Start the Menu</a>
-      </section>
     </header>
   );
 }
 
-function AlcoholDots({ level }) {
-  const count = level === "高" ? 5 : level === "中高" ? 4 : level === "中等" ? 3 : 2;
+function StrengthBadge({ level }) {
   return (
-    <span className="alcohol-dots" aria-label={`酒精度：${level}`}>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <span key={index} className={index < count ? "is-filled" : ""} />
-      ))}
+    <span className="info-pill info-pill--strength" aria-label={`酒精度：${level}`}>
+      <small>Strength</small>
+      {level}
     </span>
   );
 }
@@ -141,6 +147,27 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function createGuestId() {
+  return `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function readGuestProfile() {
+  const storedId = window.localStorage.getItem(GUEST_ID_KEY) || createGuestId();
+  const storedName = window.localStorage.getItem(GUEST_NAME_KEY) || storedId;
+  window.localStorage.setItem(GUEST_ID_KEY, storedId);
+  window.localStorage.setItem(GUEST_NAME_KEY, storedName);
+  return { guestId: storedId, guestName: storedName };
+}
+
+function readSubmittedTicket() {
+  try {
+    const raw = window.localStorage.getItem(SUBMITTED_TICKET_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function serializeSelection(optionId) {
   const option = findOption(optionId);
   if (!option) return null;
@@ -182,6 +209,15 @@ function formatBackendItemAdjustments(item) {
   return [sweetness, ...selections, item.remark].filter(Boolean);
 }
 
+function getOrderGuestName(order) {
+  return order?.guest_name?.trim() || "Guest / 未命名朋友";
+}
+
+function getOrderGuestLine(order) {
+  const name = getOrderGuestName(order);
+  return order?.guest_id && order.guest_id !== order.guest_name ? `${name} · ${order.guest_id}` : name;
+}
+
 function isAdminRoute() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.replace(/\/$/, "");
@@ -212,7 +248,6 @@ function DrinkCard({ drink, category, focused, onOpen }) {
   return (
     <article className={`drink-card ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`} data-drink-id={drink.id}>
       <PaperMarks />
-      <div className="drink-card__number">{drink.number}</div>
       {!drink.available && <span className="soldout-stamp">今日售罄</span>}
       <div className="drink-card__top">
         <div>
@@ -220,7 +255,6 @@ function DrinkCard({ drink, category, focused, onOpen }) {
           <h3>{drink.nameZh}</h3>
           <p className="drink-card__en">{drink.nameEn}</p>
         </div>
-        <AlcoholDots level={drink.alcohol} />
       </div>
       <DrinkImage drink={drink} />
       <p className="drink-card__note">{drink.note}</p>
@@ -229,7 +263,7 @@ function DrinkCard({ drink, category, focused, onOpen }) {
       </div>
       <div className="drink-card__meta">
         <InfoPill label="基酒" value={drink.base} />
-        <InfoPill label="烈度" value={drink.alcohol} />
+        <StrengthBadge level={drink.alcohol} />
       </div>
       <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
         Add to Ticket
@@ -350,14 +384,33 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
 
 function StatusPill({ status }) {
   const statusItem = findStatus(status);
-  const statusIndex = statusSteps.findIndex((item) => item.id === statusItem.id);
+  const statusIndex = Math.max(0, adminStatusSteps.findIndex((item) => item.id === statusItem.id));
   return <span className={`status-pill status-pill--${statusIndex}`}>{statusItem.labelEn} / {statusItem.labelZh}</span>;
 }
 
-function OrderDock({ orders, onAdvance, onRemove, onClear, onSubmit, submitState, submittedTicket }) {
+function GuestIdentity({ guestName, onChange }) {
+  return (
+    <section className="guest-card" aria-label="点单昵称">
+      <div>
+        <p className="overline">Guest name</p>
+        <label htmlFor="guest-name">给自己取个名字，方便 Jimmy 送酒</label>
+      </div>
+      <input
+        id="guest-name"
+        type="text"
+        value={guestName}
+        maxLength={24}
+        placeholder="比如 Alex、3号桌、小王、蓝色卫衣"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </section>
+  );
+}
+
+function OrderDock({ orders, onAdvance, onRemove, onClear, onSubmit, submitState, submittedTicket, ticketNotice }) {
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
 
-  if (!orders.length && !submittedTicket) return null;
+  if (!orders.length && !submittedTicket && !ticketNotice) return null;
 
   return (
     <aside className="order-dock" aria-live="polite">
@@ -365,7 +418,14 @@ function OrderDock({ orders, onAdvance, onRemove, onClear, onSubmit, submitState
         <div className="ticket-success">
           <p className="overline">Ticket sent</p>
           <h2>Ticket #{submittedTicket.ticket_no}</h2>
-          <span>Queued / 排队中</span>
+          <p>{getOrderGuestLine(submittedTicket)}</p>
+          <StatusPill status={submittedTicket.status} />
+        </div>
+      ) : ticketNotice ? (
+        <div className="ticket-success">
+          <p className="overline">Tonight’s tickets cleared</p>
+          <h2>已打烊</h2>
+          <p>{ticketNotice}</p>
         </div>
       ) : (
         <>
@@ -470,13 +530,17 @@ function readStoredOrders() {
 function CustomerApp() {
   const deckRef = useRef(null);
   const hasMountedRef = useRef(false);
+  const initialGuestProfile = useMemo(() => readGuestProfile(), []);
   const [activeCategory, setActiveCategory] = useState("all");
   const [focusedDrinkId, setFocusedDrinkId] = useState(drinks[0].id);
   const [activeDrink, setActiveDrink] = useState(null);
   const [draft, setDraft] = useState(createDraft());
   const [orders, setOrders] = useState(() => readStoredOrders());
   const [submitState, setSubmitState] = useState({ loading: false, error: "" });
-  const [submittedTicket, setSubmittedTicket] = useState(null);
+  const [submittedTicket, setSubmittedTicket] = useState(() => readSubmittedTicket());
+  const [ticketNotice, setTicketNotice] = useState("");
+  const [guestId] = useState(initialGuestProfile.guestId);
+  const [guestName, setGuestName] = useState(initialGuestProfile.guestName);
 
   const visibleDrinks = useMemo(() => {
     if (activeCategory === "all") return drinks;
@@ -486,7 +550,7 @@ function CustomerApp() {
   useEffect(() => {
     setFocusedDrinkId(visibleDrinks[0]?.id || drinks[0].id);
     if (hasMountedRef.current) {
-      deckRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
       hasMountedRef.current = true;
     }
@@ -500,6 +564,76 @@ function CustomerApp() {
     }));
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   }, [orders]);
+
+  useEffect(() => {
+    const normalizedName = guestName.trim() || guestId;
+    window.localStorage.setItem(GUEST_ID_KEY, guestId);
+    window.localStorage.setItem(GUEST_NAME_KEY, normalizedName);
+  }, [guestId, guestName]);
+
+  useEffect(() => {
+    if (submittedTicket) {
+      window.localStorage.setItem(SUBMITTED_TICKET_KEY, JSON.stringify(submittedTicket));
+    } else {
+      window.localStorage.removeItem(SUBMITTED_TICKET_KEY);
+    }
+  }, [submittedTicket]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !submittedTicket?.id) return undefined;
+
+    let cancelled = false;
+
+    async function refreshSubmittedTicket() {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", submittedTicket.id)
+        .maybeSingle();
+
+      if (cancelled || error) return;
+      if (data) {
+        setSubmittedTicket(data);
+        setTicketNotice("");
+      } else {
+        setSubmittedTicket(null);
+        setOrders([]);
+        setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
+      }
+    }
+
+    refreshSubmittedTicket();
+
+    const channel = supabase
+      .channel(`jimmys-orders-customer-${submittedTicket.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${submittedTicket.id}` }, (payload) => {
+        setSubmittedTicket(payload.new);
+        setTicketNotice("");
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [submittedTicket?.id]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined;
+
+    const channel = supabase
+      .channel("jimmys-orders-customer-close-bar")
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, () => {
+        setSubmittedTicket(null);
+        setOrders([]);
+        setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle("is-sheet-open", Boolean(activeDrink));
@@ -598,6 +732,7 @@ function CustomerApp() {
       }
     ]);
     setSubmittedTicket(null);
+    setTicketNotice("");
     setActiveDrink(null);
     setDraft(createDraft());
   }
@@ -617,13 +752,15 @@ function CustomerApp() {
 
     const payload = {
       status: "queued",
+      guest_name: guestName.trim() || guestId,
+      guest_id: guestId,
       items: orders.map(serializeOrderItem)
     };
 
     const { data, error } = await supabase
       .from("orders")
       .insert(payload)
-      .select("id,ticket_no,status,created_at")
+      .select("*")
       .single();
 
     if (error) {
@@ -636,6 +773,7 @@ function CustomerApp() {
 
     setSubmittedTicket(data);
     setOrders([]);
+    setTicketNotice("");
     setSubmitState({ loading: false, error: "" });
   }
 
@@ -655,6 +793,7 @@ function CustomerApp() {
       <a className="skip-link" href="#menu">跳到酒单</a>
       <HeroPoster />
       <main id="menu" className="menu-page">
+        <GuestIdentity guestName={guestName} onChange={setGuestName} />
         <CategoryNav activeCategory={activeCategory} onChange={setActiveCategory} />
         <section className="drink-deck" ref={deckRef} onPointerMove={handleDeckScroll} aria-label="鸡尾酒卡片">
           {visibleDrinks.map((drink) => (
@@ -680,6 +819,7 @@ function CustomerApp() {
         onSubmit={submitTicket}
         submitState={submitState}
         submittedTicket={submittedTicket}
+        ticketNotice={ticketNotice}
       />
       <DrinkDetailSheet
         drink={activeDrink}
@@ -726,16 +866,16 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
   const items = Array.isArray(order.items) ? order.items : [];
 
   return (
-    <article className="admin-order">
+    <article className={`admin-order admin-order--${status.id}`}>
       <header className="admin-order__header">
         <div>
           <p className="overline">Ticket #{order.ticket_no}</p>
           <h2>{status.labelEn} / {status.labelZh}</h2>
-          <span>{formatDateTime(order.created_at)}</span>
+          <span>{getOrderGuestLine(order)} · {formatDateTime(order.created_at)}</span>
         </div>
         <div className="admin-order__actions">
-          <button type="button" onClick={() => onStatusChange(order.id, "mixing")}>Mixing</button>
-          <button type="button" onClick={() => onStatusChange(order.id, "served")}>Served</button>
+          <button type="button" onClick={() => onStatusChange(order.id, "mixing")}>Mark Mixing</button>
+          <button type="button" onClick={() => onStatusChange(order.id, "served")}>Mark Served</button>
           <button type="button" onClick={() => onStatusChange(order.id, "cancelled")}>Cancel</button>
         </div>
       </header>
@@ -797,6 +937,7 @@ function AdminApp() {
   const [orders, setOrders] = useState([]);
   const [activeStatus, setActiveStatus] = useState("queued");
   const [adminState, setAdminState] = useState({ loading: false, error: "" });
+  const [closeBarState, setCloseBarState] = useState({ loading: false, message: "", error: "" });
 
   const recipeMap = useMemo(() => new Map(recipes.map((recipe) => [recipe.drinkId, recipe])), []);
 
@@ -863,6 +1004,28 @@ function AdminApp() {
     }
   }
 
+  async function closeBar() {
+    if (!isSupabaseConfigured || closeBarState.loading) return;
+    const confirmed = window.confirm("确定要打烊并清空所有订单吗？该操作会删除所有当前订单，无法恢复。");
+    if (!confirmed) return;
+
+    setCloseBarState({ loading: true, message: "", error: "" });
+    // 营业结束重置订单：清空当前 orders 表，让所有顾客端通过 realtime 同步归零。
+    const { error } = await supabase
+      .from("orders")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) {
+      setCloseBarState({ loading: false, message: "", error: "打烊失败，请检查 Supabase delete policy 后重试。" });
+      loadOrders();
+      return;
+    }
+
+    setOrders([]);
+    setCloseBarState({ loading: false, message: "已打烊，订单已清空。", error: "" });
+  }
+
   if (!unlocked) {
     return <AdminLogin pin={pin} setPin={setPin} error={unlockError} onUnlock={handleUnlock} />;
   }
@@ -881,15 +1044,20 @@ function AdminApp() {
           <h1>Tonight’s Tickets</h1>
           <p>订单队列、调制状态和每杯酒的 recipe cue。</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
-            setUnlocked(false);
-          }}
-        >
-          Lock
-        </button>
+        <div className="admin-hero__actions">
+          <button type="button" className="close-bar-button" onClick={closeBar} disabled={closeBarState.loading}>
+            {closeBarState.loading ? "Closing..." : "Close Bar / 打烊"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+              setUnlocked(false);
+            }}
+          >
+            Lock
+          </button>
+        </div>
       </header>
 
       <nav className="admin-filters" aria-label="订单状态筛选">
@@ -909,6 +1077,8 @@ function AdminApp() {
       </nav>
 
       {adminState.error && <p className="admin-error admin-error--wide">{adminState.error}</p>}
+      {closeBarState.error && <p className="admin-error admin-error--wide">{closeBarState.error}</p>}
+      {closeBarState.message && <p className="admin-success admin-success--wide">{closeBarState.message}</p>}
       {adminState.loading && <p className="admin-loading">Loading tickets...</p>}
 
       <section className="admin-board" aria-label="订单队列">
@@ -919,8 +1089,8 @@ function AdminApp() {
         ) : (
           <div className="admin-empty">
             <p className="overline">Quiet Bar</p>
-            <h2>现在没有这个状态的订单</h2>
-            <p>等第一张小票飞进来，吧台就热闹了。</p>
+            <h2>{closeBarState.message ? "已打烊，订单已清空" : "现在没有这个状态的订单"}</h2>
+            <p>{closeBarState.message ? "刷新后订单也不会重新出现。" : "等第一张小票飞进来，吧台就热闹了。"}</p>
           </div>
         )}
       </section>
