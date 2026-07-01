@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jimmy's Bar</title>
+  </head>
+  <body>
+    <script>
+      const base = "/homebar-menu/";
+      const path = window.location.pathname;
+      if (path.startsWith(base)) {
+        const route = path.slice(base.length).replace(/\/$/, "");
+        window.location.replace(`${base}#/${route}${window.location.search}`);
+      } else {
+        window.location.replace(base);
+      }
+    </script>
+  </body>
+</html>
