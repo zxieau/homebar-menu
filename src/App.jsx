@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { categories, drinks, optionGroups, statusSteps, sweetnessOptions } from "./data/menu.js";
+import {
+  categories,
+  dealerBaseOptions,
+  dealerFlavorOptions,
+  drinks,
+  optionGroups,
+  statusSteps,
+  sweetnessOptions
+} from "./data/menu.js";
 import { recipes } from "./data/recipes.js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase.js";
 
 const STORAGE_KEY = "jimmys-homebar-orders-v3";
 const SUBMITTED_TICKET_KEY = "jimmys-homebar-submitted-ticket-v1";
+const SUBMITTED_TICKETS_KEY = "jimmys-homebar-submitted-tickets-v2";
 const GUEST_NAME_KEY = "jimmys-bar-guest-name";
 const GUEST_ID_KEY = "jimmys-bar-guest-id";
 const ADMIN_SESSION_KEY = "jimmys-homebar-admin-unlocked";
@@ -125,12 +134,77 @@ function findSweetness(sweetnessId) {
   return sweetnessOptions.find((option) => option.id === sweetnessId) || null;
 }
 
+function getItemType(item) {
+  return item?.type || "drink";
+}
+
+function isDrinkItem(item) {
+  return getItemType(item) === "drink";
+}
+
+function isSnackItem(item) {
+  return getItemType(item) === "snack";
+}
+
+function isCustomItem(item) {
+  return getItemType(item) === "custom";
+}
+
 function formatChoice(option) {
   if (!option) return "";
   return `${option.labelEn} / ${option.labelZh}`;
 }
 
+function findDealerBase(baseId) {
+  return dealerBaseOptions.find((option) => option.id === baseId) || dealerBaseOptions[0];
+}
+
+function findDealerFlavor(flavorId) {
+  return dealerFlavorOptions.find((option) => option.id === flavorId) || dealerFlavorOptions[0];
+}
+
+function generateDealerChoice(baseId, flavorId) {
+  const base = findDealerBase(baseId);
+  const flavor = findDealerFlavor(flavorId);
+  const nameSeeds = {
+    citrus: ["暮色酸咒", "Dusk Sour Spell"],
+    sweet: ["灯下蜜语", "Lantern Velvet"],
+    strong: ["午夜暗牌", "Midnight Draw"],
+    fizzy: ["星尘气泡", "Stardust Highball"]
+  };
+  const [nameZh, nameEn] = nameSeeds[flavor.id] || nameSeeds.citrus;
+  const finalNameZh = `${base.labelZh}${nameZh}`;
+  const finalNameEn = `${base.labelEn} ${nameEn}`;
+
+  return {
+    nameZh: finalNameZh,
+    nameEn: finalNameEn,
+    description: `${base.character}打底，${flavor.tone}。这杯会按现场心情微调，但保持好喝、不乱来。`,
+    recipeCue: {
+      ingredients: [base.core, ...flavor.ingredients],
+      method: flavor.method,
+      glass: flavor.id === "fizzy" ? "Highball / 长饮杯" : flavor.id === "strong" ? "Rocks / 古典杯" : "Coupe / 鸡尾酒杯",
+      garnish: flavor.garnish,
+      prepNotes: `Dealer’s Choice：客人选择 ${base.labelEn} / ${base.labelZh} + ${flavor.labelEn} / ${flavor.labelZh}。先按建议配方出杯，最后根据备注微调。`
+    }
+  };
+}
+
 function formatOrderAdjustments(order) {
+  if (isSnackItem(order.drink)) {
+    return [order.remark].filter(Boolean);
+  }
+
+  if (isCustomItem(order.drink)) {
+    const generated = generateDealerChoice(order.dealerBase, order.dealerFlavor);
+    return [
+      `${findDealerBase(order.dealerBase).labelEn} / ${findDealerBase(order.dealerBase).labelZh}`,
+      `${findDealerFlavor(order.dealerFlavor).labelEn} / ${findDealerFlavor(order.dealerFlavor).labelZh}`,
+      generated.nameZh,
+      order.remark
+    ].filter(Boolean);
+  }
+
   const sweetness = formatChoice(findSweetness(order.sweetness));
   const singleSelections = Object.values(order.singleSelections || {}).map((optionId) => formatChoice(findOption(optionId)));
   const multiSelections = (order.multiSelections || []).map((optionId) => formatChoice(findOption(optionId)));
@@ -168,6 +242,25 @@ function readSubmittedTicket() {
   }
 }
 
+function readSubmittedTickets() {
+  try {
+    const raw = window.localStorage.getItem(SUBMITTED_TICKETS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) return parsed.filter((ticket) => ticket?.id);
+  } catch {
+    // Fall through to legacy migration.
+  }
+
+  const legacyTicket = readSubmittedTicket();
+  return legacyTicket?.id ? [legacyTicket] : [];
+}
+
+function upsertTicket(tickets, nextTicket) {
+  if (!nextTicket?.id) return tickets;
+  const withoutCurrent = tickets.filter((ticket) => ticket.id !== nextTicket.id);
+  return [nextTicket, ...withoutCurrent].slice(0, 12);
+}
+
 function serializeSelection(optionId) {
   const option = findOption(optionId);
   if (!option) return null;
@@ -180,16 +273,55 @@ function serializeSelection(optionId) {
 }
 
 function serializeOrderItem(order) {
+  const itemType = getItemType(order.drink);
+  const baseItem = {
+    line_id: order.id,
+    type: itemType,
+    drink_id: order.drink.id,
+    name_zh: order.drink.nameZh,
+    name_en: order.drink.nameEn,
+    quantity: order.quantity,
+    remark: order.remark || ""
+  };
+
+  if (isSnackItem(order.drink)) {
+    return {
+      ...baseItem,
+      recipe_cue: order.drink.prepCue || {
+        ingredients: [order.drink.nameZh],
+        method: "按现场现有小食快速出盘。",
+        glass: "小碟",
+        garnish: "",
+        prepNotes: "小食无需酒类客制化。"
+      }
+    };
+  }
+
+  if (isCustomItem(order.drink)) {
+    const generated = generateDealerChoice(order.dealerBase, order.dealerFlavor);
+    return {
+      ...baseItem,
+      name_zh: generated.nameZh,
+      name_en: generated.nameEn,
+      dealer_choice: {
+        base: findDealerBase(order.dealerBase),
+        flavor: findDealerFlavor(order.dealerFlavor),
+        description: generated.description
+      },
+      selections: [
+        { id: order.dealerBase, label: `${findDealerBase(order.dealerBase).labelEn} / ${findDealerBase(order.dealerBase).labelZh}` },
+        { id: order.dealerFlavor, label: `${findDealerFlavor(order.dealerFlavor).labelEn} / ${findDealerFlavor(order.dealerFlavor).labelZh}` }
+      ],
+      recipe_cue: generated.recipeCue
+    };
+  }
+
   const singleSelections = Object.values(order.singleSelections || {}).map(serializeSelection).filter(Boolean);
   const multiSelections = (order.multiSelections || []).map(serializeSelection).filter(Boolean);
   const sweetness = findSweetness(order.sweetness);
 
   return {
-    line_id: order.id,
-    drink_id: order.drink.id,
-    name_zh: order.drink.nameZh,
-    name_en: order.drink.nameEn,
-    quantity: order.quantity,
+    ...baseItem,
     sweetness: sweetness
       ? {
           id: sweetness.id,
@@ -198,15 +330,15 @@ function serializeOrderItem(order) {
           label: formatChoice(sweetness)
         }
       : null,
-    selections: [...singleSelections, ...multiSelections],
-    remark: order.remark || ""
+    selections: [...singleSelections, ...multiSelections]
   };
 }
 
 function formatBackendItemAdjustments(item) {
   const sweetness = item.sweetness?.label || "";
   const selections = (item.selections || []).map((selection) => selection.label || `${selection.labelEn} / ${selection.labelZh}`);
-  return [sweetness, ...selections, item.remark].filter(Boolean);
+  const dealerDescription = item.dealer_choice?.description || "";
+  return [sweetness, ...selections, dealerDescription, item.remark].filter(Boolean);
 }
 
 function getOrderGuestName(order) {
@@ -237,7 +369,7 @@ function CategoryNav({ activeCategory, onChange }) {
           className={activeCategory === category.id ? "is-active" : ""}
           onClick={() => onChange(category.id)}
         >
-          {category.code}. {category.en} / {category.name}
+          {category.shortLabel || `${category.en} / ${category.name}`}
         </button>
       ))}
     </nav>
@@ -245,8 +377,14 @@ function CategoryNav({ activeCategory, onChange }) {
 }
 
 function DrinkCard({ drink, category, focused, onOpen }) {
+  const itemType = getItemType(drink);
+  const actionLabel = itemType === "snack" ? "Add Snack" : itemType === "custom" ? "Make My Pour" : "Add to Ticket";
+
   return (
-    <article className={`drink-card ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`} data-drink-id={drink.id}>
+    <article
+      className={`drink-card drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`}
+      data-drink-id={drink.id}
+    >
       <PaperMarks />
       {!drink.available && <span className="soldout-stamp">今日售罄</span>}
       <div className="drink-card__top">
@@ -262,11 +400,25 @@ function DrinkCard({ drink, category, focused, onOpen }) {
         {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
       </div>
       <div className="drink-card__meta">
-        <InfoPill label="基酒" value={drink.base} />
-        <StrengthBadge level={drink.alcohol} />
+        {isDrinkItem(drink) ? (
+          <>
+            <InfoPill label="基酒" value={drink.base} />
+            <StrengthBadge level={drink.alcohol} />
+          </>
+        ) : isCustomItem(drink) ? (
+          <>
+            <InfoPill label="玩法" value="基酒 + 风味" />
+            <InfoPill label="出品" value="现场生成" />
+          </>
+        ) : (
+          <>
+            <InfoPill label="类别" value="小食" />
+            <InfoPill label="节奏" value="先上也可以" />
+          </>
+        )}
       </div>
       <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
-        Add to Ticket
+        {actionLabel}
       </button>
     </article>
   );
@@ -293,6 +445,9 @@ function QuantityPicker({ value, onChange }) {
 
 function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, onClose, onAdd }) {
   if (!drink) return null;
+  const generatedDealer = isCustomItem(drink) ? generateDealerChoice(draft.dealerBase, draft.dealerFlavor) : null;
+  const sheetLabel = isSnackItem(drink) ? "Bar Snack" : isCustomItem(drink) ? "Dealer’s Choice" : "Tonight’s Pour";
+  const actionLabel = isSnackItem(drink) ? "Add Snack" : isCustomItem(drink) ? "Add Mystery Pour" : "Add to Ticket";
 
   return (
     <div className="sheet-layer" role="presentation">
@@ -303,7 +458,7 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
         <div className="detail-sheet__hero">
           <DrinkImage drink={drink} large />
           <div>
-            <p className="overline">Tonight’s Pour</p>
+            <p className="overline">{sheetLabel}</p>
             <h2 id="detail-title">{drink.nameZh}</h2>
             <p className="detail-en">{drink.nameEn}</p>
           </div>
@@ -312,15 +467,66 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
           <div className="tag-row">
             {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
           </div>
-          <div className="detail-grid">
-            <InfoPill label="基酒" value={drink.base} />
-            <InfoPill label="风味" value={drink.flavor} />
-            <InfoPill label="酒精度" value={drink.alcohol} />
-          </div>
+          {isDrinkItem(drink) && (
+            <div className="detail-grid">
+              <InfoPill label="基酒" value={drink.base} />
+              <InfoPill label="风味" value={drink.flavor} />
+              <InfoPill label="酒精度" value={drink.alcohol} />
+            </div>
+          )}
+          {isSnackItem(drink) && (
+            <div className="detail-grid">
+              <InfoPill label="类别" value="小食" />
+              <InfoPill label="适合" value="分享 / 垫胃" />
+            </div>
+          )}
+          {isCustomItem(drink) && (
+            <div className="detail-grid">
+              <InfoPill label="玩法" value="选基酒" />
+              <InfoPill label="风味" value="选方向" />
+            </div>
+          )}
           <p className="detail-copy">{drink.note}</p>
           <p className="detail-audience">适合：{drink.audience}</p>
 
-          {drink.sweetness && (
+          {isCustomItem(drink) && (
+            <>
+              <div className="option-section">
+                <p>Base Spirit</p>
+                <div className="option-grid option-grid--dealer">
+                  {dealerBaseOptions.map((option) => (
+                    <OptionChip
+                      key={option.id}
+                      option={option}
+                      selected={draft.dealerBase === option.id}
+                      onToggle={() => onPatchDraft({ dealerBase: option.id })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="option-section">
+                <p>Flavor Profile</p>
+                <div className="option-grid option-grid--two">
+                  {dealerFlavorOptions.map((option) => (
+                    <OptionChip
+                      key={option.id}
+                      option={option}
+                      selected={draft.dealerFlavor === option.id}
+                      onToggle={() => onPatchDraft({ dealerFlavor: option.id })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="dealer-preview" aria-live="polite">
+                <p className="overline">Tonight’s Secret</p>
+                <h3>{generatedDealer.nameZh}</h3>
+                <span>{generatedDealer.nameEn}</span>
+                <p>{generatedDealer.description}</p>
+              </div>
+            </>
+          )}
+
+          {isDrinkItem(drink) && drink.sweetness && (
             <div className="option-section">
               <p>Sweetness</p>
               <div className="option-grid option-grid--two">
@@ -336,25 +542,36 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
             </div>
           )}
 
-          {optionGroups.map((group) => (
-            <div className="option-section" key={group.id}>
-              <p>{group.title}</p>
-              <div className="option-grid">
-                {group.options.map((option) => (
-                  <OptionChip
-                    key={option.id}
-                    option={option}
-                    selected={
-                      group.type === "single"
-                        ? draft.singleSelections[group.id] === option.id
-                        : draft.multiSelections.includes(option.id)
-                    }
-                    onToggle={() => onToggleGroupedOption(group, option)}
-                  />
-                ))}
-              </div>
+          {isDrinkItem(drink) && (
+            <>
+              {optionGroups.map((group) => (
+                <div className="option-section" key={group.id}>
+                  <p>{group.title}</p>
+                  <div className="option-grid">
+                    {group.options.map((option) => (
+                      <OptionChip
+                        key={option.id}
+                        option={option}
+                        selected={
+                          group.type === "single"
+                            ? draft.singleSelections[group.id] === option.id
+                            : draft.multiSelections.includes(option.id)
+                        }
+                        onToggle={() => onToggleGroupedOption(group, option)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {isSnackItem(drink) && (
+            <div className="snack-note">
+              <p className="overline">Snack Cue</p>
+              <span>小食只需要数量和备注；如果想要多酱、少盐、先上，可以写在备注里。</span>
             </div>
-          ))}
+          )}
 
           <div className="detail-form-row">
             <label>
@@ -368,13 +585,13 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
             <textarea
               rows={3}
               value={draft.remark}
-              placeholder="例如：less sour, first round"
+              placeholder={isSnackItem(drink) ? "例如：多一点酱、先上、少盐" : isCustomItem(drink) ? "例如：别太甜、酒感明显一点" : "例如：less sour, first round"}
               onChange={(event) => onPatchDraft({ remark: event.target.value })}
             />
           </label>
 
           <button className="primary-button" type="button" onClick={() => onAdd(drink)}>
-            Add to Ticket
+            {actionLabel}
           </button>
         </div>
       </section>
@@ -407,58 +624,124 @@ function GuestIdentity({ guestName, onChange }) {
   );
 }
 
-function OrderDock({ orders, onAdvance, onRemove, onClear, onSubmit, submitState, submittedTicket, ticketNotice }) {
+function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+  const latestTicket = submittedTickets[0];
 
-  if (!orders.length && !submittedTicket && !ticketNotice) return null;
+  if (!orders.length && !submittedTickets.length && !ticketNotice) return null;
 
   return (
-    <aside className="order-dock" aria-live="polite">
-      {submittedTicket ? (
-        <div className="ticket-success">
-          <p className="overline">Ticket sent</p>
-          <h2>Ticket #{submittedTicket.ticket_no}</h2>
-          <p>{getOrderGuestLine(submittedTicket)}</p>
-          <StatusPill status={submittedTicket.status} />
-        </div>
-      ) : ticketNotice ? (
-        <div className="ticket-success">
-          <p className="overline">Tonight’s tickets cleared</p>
-          <h2>已打烊</h2>
-          <p>{ticketNotice}</p>
-        </div>
-      ) : (
-        <>
-          <div className="order-dock__header">
+    <button className="order-dock order-dock--compact" type="button" onClick={onOpen} aria-live="polite">
+      <div>
+        <p className="overline">{ticketNotice ? "Bar Notice" : "My Ticket"}</p>
+        <h2>
+          {ticketNotice
+            ? "今晚订单已清空"
+            : orders.length
+              ? `待发送 ${totalQuantity} 项`
+              : `${submittedTickets.length} 张已发送小票`}
+        </h2>
+      </div>
+      <div className="order-dock__right">
+        {latestTicket && <StatusPill status={latestTicket.status} />}
+        <span>View</span>
+      </div>
+    </button>
+  );
+}
+
+function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState, onClose, onRemove, onClear, onSubmit }) {
+  if (!open) return null;
+  const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+
+  return (
+    <div className="sheet-layer ticket-sheet-layer" role="presentation">
+      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="关闭我的订单" />
+      <section className="ticket-sheet" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
+        <button className="close-button" type="button" onClick={onClose} aria-label="关闭">×</button>
+        <PaperMarks />
+        <header className="ticket-sheet__header">
+          <p className="overline">My Ticket</p>
+          <h2 id="ticket-title">我的订单</h2>
+          <p>这里会显示待发送的小票和已经发给吧台的订单。</p>
+        </header>
+
+        {ticketNotice && (
+          <div className="ticket-notice">
+            <p className="overline">Tonight’s tickets cleared</p>
+            <span>{ticketNotice}</span>
+          </div>
+        )}
+
+        <section className="ticket-section">
+          <div className="ticket-section__title">
             <div>
-              <p className="overline">Bartender ticket</p>
-              <h2>今晚小票 <span>{totalQuantity} 杯</span></h2>
+              <p className="overline">Draft Ticket</p>
+              <h3>待发送 <span>{totalQuantity} 项</span></h3>
             </div>
-            <button type="button" onClick={onClear}>清空</button>
+            {orders.length > 0 && <button type="button" onClick={onClear}>清空</button>}
           </div>
-          <div className="order-dock__items">
-            {orders.map((order, index) => (
-              <article className="order-mini" key={order.id}>
-                <div>
-                  <h3>#{index + 1} {order.drink.nameZh} × {order.quantity}</h3>
-                  <p>{formatOrderAdjustments(order).join(" · ") || "House Pour / 默认配方"}</p>
-                </div>
-                <div className="order-mini__actions">
-                  <button type="button" onClick={() => onAdvance(order.id)} aria-label={`推进 ${order.drink.nameZh} 状态`}>
-                    <StatusPill status={order.status} />
-                  </button>
-                  <button type="button" onClick={() => onRemove(order.id)} aria-label={`删除 ${order.drink.nameZh}`}>删</button>
-                </div>
-              </article>
-            ))}
-          </div>
+          {orders.length ? (
+            <div className="order-dock__items order-dock__items--sheet">
+              {orders.map((order, index) => (
+                <article className="order-mini" key={order.id}>
+                  <div>
+                    <h3>#{index + 1} {order.drink.nameZh} × {order.quantity}</h3>
+                    <p>{formatOrderAdjustments(order).join(" · ") || "House Pour / 默认配方"}</p>
+                  </div>
+                  <div className="order-mini__actions">
+                    <button type="button" onClick={() => onRemove(order.id)} aria-label={`删除 ${order.drink.nameZh}`}>删</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="ticket-empty">还没有待发送的内容。选一杯酒，或者先加点小食。</p>
+          )}
           {submitState.error && <p className="submit-error">{submitState.error}</p>}
-          <button className="submit-ticket-button" type="button" onClick={onSubmit} disabled={submitState.loading}>
-            {submitState.loading ? "Sending..." : "Send to Bar"}
-          </button>
-        </>
-      )}
-    </aside>
+          {orders.length > 0 && (
+            <button className="submit-ticket-button" type="button" onClick={onSubmit} disabled={submitState.loading}>
+              {submitState.loading ? "Sending..." : "Send to Bar"}
+            </button>
+          )}
+        </section>
+
+        <section className="ticket-section">
+          <div className="ticket-section__title">
+            <div>
+              <p className="overline">Sent Tickets</p>
+              <h3>已发送 <span>{submittedTickets.length} 张</span></h3>
+            </div>
+          </div>
+          {submittedTickets.length ? (
+            <div className="submitted-ticket-list">
+              {submittedTickets.map((ticket) => (
+                <article className="submitted-ticket" key={ticket.id}>
+                  <header>
+                    <div>
+                      <p className="overline">Ticket #{ticket.ticket_no}</p>
+                      <h3>{getOrderGuestLine(ticket)}</h3>
+                      <span>{formatDateTime(ticket.created_at)}</span>
+                    </div>
+                    <StatusPill status={ticket.status} />
+                  </header>
+                  <ul>
+                    {(Array.isArray(ticket.items) ? ticket.items : []).map((item) => (
+                      <li key={item.line_id || `${item.drink_id}-${item.name_en}`}>
+                        <span>{item.name_zh} × {item.quantity}</span>
+                        <small>{formatBackendItemAdjustments(item).join(" · ") || "House Pour / 默认配方"}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="ticket-empty">还没有发送到吧台的订单。</p>
+          )}
+        </section>
+      </section>
+    </div>
   );
 }
 
@@ -467,6 +750,8 @@ function createDraft(drink = null) {
     sweetness: drink?.sweetness ? "house-sweet" : "",
     singleSelections: {},
     multiSelections: [],
+    dealerBase: dealerBaseOptions[0]?.id || "",
+    dealerFlavor: dealerFlavorOptions[0]?.id || "",
     quantity: 1,
     remark: ""
   };
@@ -537,7 +822,8 @@ function CustomerApp() {
   const [draft, setDraft] = useState(createDraft());
   const [orders, setOrders] = useState(() => readStoredOrders());
   const [submitState, setSubmitState] = useState({ loading: false, error: "" });
-  const [submittedTicket, setSubmittedTicket] = useState(() => readSubmittedTicket());
+  const [submittedTickets, setSubmittedTickets] = useState(() => readSubmittedTickets());
+  const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
   const [ticketNotice, setTicketNotice] = useState("");
   const [guestId] = useState(initialGuestProfile.guestId);
   const [guestName, setGuestName] = useState(initialGuestProfile.guestName);
@@ -572,43 +858,49 @@ function CustomerApp() {
   }, [guestId, guestName]);
 
   useEffect(() => {
-    if (submittedTicket) {
-      window.localStorage.setItem(SUBMITTED_TICKET_KEY, JSON.stringify(submittedTicket));
-    } else {
-      window.localStorage.removeItem(SUBMITTED_TICKET_KEY);
-    }
-  }, [submittedTicket]);
+    window.localStorage.setItem(SUBMITTED_TICKETS_KEY, JSON.stringify(submittedTickets));
+    window.localStorage.removeItem(SUBMITTED_TICKET_KEY);
+  }, [submittedTickets]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !submittedTicket?.id) return undefined;
+    if (!isSupabaseConfigured || !submittedTickets.length) return undefined;
 
     let cancelled = false;
+    const knownIds = new Set(submittedTickets.map((ticket) => ticket.id));
 
-    async function refreshSubmittedTicket() {
+    async function refreshSubmittedTickets() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("id", submittedTicket.id)
-        .maybeSingle();
+        .in("id", Array.from(knownIds));
 
       if (cancelled || error) return;
-      if (data) {
-        setSubmittedTicket(data);
+      if (data?.length) {
+        setSubmittedTickets((current) => {
+          const liveMap = new Map(data.map((ticket) => [ticket.id, ticket]));
+          return current.map((ticket) => liveMap.get(ticket.id) || ticket).filter((ticket) => liveMap.has(ticket.id));
+        });
         setTicketNotice("");
       } else {
-        setSubmittedTicket(null);
+        setSubmittedTickets([]);
         setOrders([]);
         setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
       }
     }
 
-    refreshSubmittedTicket();
+    refreshSubmittedTickets();
 
     const channel = supabase
-      .channel(`jimmys-orders-customer-${submittedTicket.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${submittedTicket.id}` }, (payload) => {
-        setSubmittedTicket(payload.new);
+      .channel("jimmys-orders-customer-tickets")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
+        if (!knownIds.has(payload.new?.id)) return;
+        setSubmittedTickets((current) => current.map((ticket) => (ticket.id === payload.new.id ? payload.new : ticket)));
         setTicketNotice("");
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, (payload) => {
+        if (!knownIds.has(payload.old?.id)) return;
+        setSubmittedTickets((current) => current.filter((ticket) => ticket.id !== payload.old.id));
+        setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
       })
       .subscribe();
 
@@ -616,7 +908,7 @@ function CustomerApp() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [submittedTicket?.id]);
+  }, [submittedTickets.map((ticket) => ticket.id).join("|")]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined;
@@ -624,7 +916,7 @@ function CustomerApp() {
     const channel = supabase
       .channel("jimmys-orders-customer-close-bar")
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, () => {
-        setSubmittedTicket(null);
+        setSubmittedTickets([]);
         setOrders([]);
         setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
       })
@@ -636,9 +928,9 @@ function CustomerApp() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink));
+    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink) || ticketSheetOpen);
     return () => document.body.classList.remove("is-sheet-open");
-  }, [activeDrink]);
+  }, [activeDrink, ticketSheetOpen]);
 
   useEffect(() => {
     function updateFocusedCard() {
@@ -726,12 +1018,13 @@ function CustomerApp() {
         sweetness: draft.sweetness,
         singleSelections: draft.singleSelections,
         multiSelections: draft.multiSelections,
+        dealerBase: draft.dealerBase,
+        dealerFlavor: draft.dealerFlavor,
         quantity: draft.quantity,
         remark: draft.remark.trim(),
         status: statusSteps[0].id
       }
     ]);
-    setSubmittedTicket(null);
     setTicketNotice("");
     setActiveDrink(null);
     setDraft(createDraft());
@@ -771,21 +1064,10 @@ function CustomerApp() {
       return;
     }
 
-    setSubmittedTicket(data);
+    setSubmittedTickets((current) => upsertTicket(current, data));
     setOrders([]);
     setTicketNotice("");
     setSubmitState({ loading: false, error: "" });
-  }
-
-  function advanceStatus(orderId) {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== orderId) return order;
-        const currentIndex = Math.max(0, statusSteps.findIndex((status) => status.id === order.status));
-        const nextIndex = Math.min(currentIndex + 1, statusSteps.length - 1);
-        return { ...order, status: statusSteps[nextIndex].id };
-      })
-    );
   }
 
   return (
@@ -813,13 +1095,20 @@ function CustomerApp() {
       </footer>
       <OrderDock
         orders={orders}
-        onAdvance={advanceStatus}
+        submittedTickets={submittedTickets}
+        ticketNotice={ticketNotice}
+        onOpen={() => setTicketSheetOpen(true)}
+      />
+      <TicketSheet
+        open={ticketSheetOpen}
+        orders={orders}
+        submittedTickets={submittedTickets}
+        ticketNotice={ticketNotice}
+        submitState={submitState}
+        onClose={() => setTicketSheetOpen(false)}
         onRemove={(orderId) => setOrders((current) => current.filter((order) => order.id !== orderId))}
         onClear={() => setOrders([])}
         onSubmit={submitTicket}
-        submitState={submitState}
-        submittedTicket={submittedTicket}
-        ticketNotice={ticketNotice}
       />
       <DrinkDetailSheet
         drink={activeDrink}
@@ -861,6 +1150,11 @@ function AdminLogin({ pin, setPin, error, onUnlock }) {
   );
 }
 
+function joinRecipeField(value) {
+  if (Array.isArray(value)) return value.join(" / ");
+  return value || "";
+}
+
 function AdminOrderCard({ order, recipeMap, onStatusChange }) {
   const status = findStatus(order.status);
   const items = Array.isArray(order.items) ? order.items : [];
@@ -882,7 +1176,7 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
 
       <div className="admin-order__items">
         {items.map((item) => {
-          const recipe = recipeMap.get(item.drink_id);
+          const recipe = item.recipe_cue || recipeMap.get(item.drink_id);
           const adjustments = formatBackendItemAdjustments(item);
 
           return (
@@ -898,7 +1192,7 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
                   <dl>
                     <div>
                       <dt>Ingredients</dt>
-                      <dd>{recipe.ingredients.join(" / ")}</dd>
+                      <dd>{joinRecipeField(recipe.ingredients)}</dd>
                     </div>
                     <div>
                       <dt>Method</dt>
@@ -914,7 +1208,7 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
                     </div>
                     <div>
                       <dt>Prep Notes</dt>
-                      <dd>{recipe.prepNotes}</dd>
+                      <dd>{recipe.prepNotes || recipe.prep_notes}</dd>
                     </div>
                   </dl>
                 </div>
@@ -1046,7 +1340,8 @@ function AdminApp() {
         </div>
         <div className="admin-hero__actions">
           <button type="button" className="close-bar-button" onClick={closeBar} disabled={closeBarState.loading}>
-            {closeBarState.loading ? "Closing..." : "Close Bar / 打烊"}
+            <span>{closeBarState.loading ? "Closing..." : "Close Bar"}</span>
+            <small>打烊</small>
           </button>
           <button
             type="button"

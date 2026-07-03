@@ -4,6 +4,7 @@ export const categories = [
     code: "A",
     name: "酸甜平衡",
     en: "Sweet & Sour",
+    shortLabel: "Sour 酸甜",
     note: "柠檬、青柠、糖浆和烈酒的清楚平衡。"
   },
   {
@@ -11,6 +12,7 @@ export const categories = [
     code: "B",
     name: "气泡解渴",
     en: "Refreshing",
+    shortLabel: "Fizz 清爽",
     note: "冰块、气泡和青柠，适合边聊边喝。"
   },
   {
@@ -18,7 +20,24 @@ export const categories = [
     code: "C",
     name: "硬核经典",
     en: "Strong Classics",
+    shortLabel: "Strong 烈酒",
     note: "酒感更直接，适合慢慢喝。"
+  },
+  {
+    id: "snacks",
+    code: "D",
+    name: "小食",
+    en: "Snacks",
+    shortLabel: "Snacks 小食",
+    note: "给今晚垫一点胃，也给聊天留一点手感。"
+  },
+  {
+    id: "mystery",
+    code: "E",
+    name: "特调",
+    en: "Mystery",
+    shortLabel: "Mystery 特调",
+    note: "不想选的时候，把今晚交给吧台。"
   }
 ];
 
@@ -207,5 +226,141 @@ export const drinks = [
     fallbackImage: "assets/images/old-fashioned.webp",
     sweetness: false,
     available: true
+  },
+  {
+    id: "fries",
+    type: "snack",
+    number: "10",
+    category: "snacks",
+    nameZh: "薯条",
+    nameEn: "House Fries",
+    base: "小食",
+    flavor: "热乎 / 咸香 / 适合垫胃",
+    alcohol: "",
+    audience: "适合先来一口，等第一杯酒慢慢出场。",
+    tags: ["热乎", "咸香", "下酒"],
+    note: "炸得脆一点，配一点酱，适合所有人边聊边拿。",
+    image: "assets/images/vintage/fries.webp",
+    sweetness: false,
+    available: true,
+    prepCue: {
+      ingredients: ["薯条", "盐", "番茄酱 / 蛋黄酱"],
+      method: "现炸或空气炸锅复热到外脆内软，出锅轻撒盐。",
+      glass: "小食篮 / 盘",
+      garnish: "可加一点黑胡椒或欧芹碎。",
+      prepNotes: "先上桌最稳，适合和第一轮清爽酒一起出。"
+    }
+  },
+  {
+    id: "popcorn-chicken",
+    type: "snack",
+    number: "11",
+    category: "snacks",
+    nameZh: "鸡米花",
+    nameEn: "Popcorn Chicken",
+    base: "小食",
+    flavor: "酥脆 / 咸香 / 一口一个",
+    alcohol: "",
+    audience: "适合有人喊饿，但还想继续喝的人。",
+    tags: ["酥脆", "一口", "热食"],
+    note: "小块鸡米花，热的时候最好吃，旁边放一小碟蘸酱。",
+    image: "assets/images/vintage/popcorn-chicken.webp",
+    sweetness: false,
+    available: true,
+    prepCue: {
+      ingredients: ["鸡米花", "蘸酱", "黑胡椒"],
+      method: "炸至金黄或空气炸锅复热，保持外层脆感。",
+      glass: "小篮 / 深盘",
+      garnish: "配牙签和一小碟酱。",
+      prepNotes: "热食优先出，避免放久回软。"
+    }
+  },
+  {
+    id: "bar-snacks",
+    type: "snack",
+    number: "12",
+    category: "snacks",
+    nameZh: "小零食",
+    nameEn: "Bar Snacks",
+    base: "小食",
+    flavor: "薯片 / 膨化 / 轻松",
+    alcohol: "",
+    audience: "适合不想吃太正式，只想桌上有点东西的人。",
+    tags: ["薯片", "膨化", "分享"],
+    note: "薯片、虾片、膨化圈这类轻松小零食，随手拼一小盘就很适合聊天。",
+    image: "assets/images/vintage/bar-snacks.webp",
+    sweetness: false,
+    available: true,
+    prepCue: {
+      ingredients: ["薯片", "虾片 / 膨化食品", "咸味小零食"],
+      method: "按家里现有薯片和膨化小食拼盘，咸口为主，避免太甜抢酒香。",
+      glass: "小碟 / 木盘",
+      garnish: "可以不用装饰，保持轻松好拿。",
+      prepNotes: "适合作为桌面常驻小食，不需要按杯次等待。"
+    }
+  },
+  {
+    id: "dealer-choice",
+    type: "custom",
+    number: "13",
+    category: "mystery",
+    nameZh: "随便来点什么",
+    nameEn: "Dealer’s Choice",
+    base: "由你选择",
+    flavor: "基酒 + 风味偏好",
+    alcohol: "可调",
+    audience: "适合今晚不想做选择，但想喝一杯专属的人。",
+    tags: ["神秘", "专属", "特调"],
+    note: "选一个基酒和一个风味方向，吧台会给你变出一杯今晚限定。",
+    image: "assets/images/vintage/dealer-choice.webp",
+    sweetness: false,
+    available: true
+  }
+];
+
+export const dealerBaseOptions = [
+  { id: "gin", labelEn: "Gin", labelZh: "金酒", character: "草本清冷", core: "金酒 45ml" },
+  { id: "bourbon", labelEn: "Bourbon", labelZh: "波本", character: "木质圆润", core: "波本 45ml" },
+  { id: "rum", labelEn: "Rum", labelZh: "朗姆", character: "甘蔗暖甜", core: "白朗姆 45ml" },
+  { id: "tequila", labelEn: "Tequila", labelZh: "龙舌兰", character: "明快微咸", core: "龙舌兰 45ml" },
+  { id: "vodka", labelEn: "Vodka", labelZh: "伏特加", character: "干净利落", core: "伏特加 45ml" }
+];
+
+export const dealerFlavorOptions = [
+  {
+    id: "citrus",
+    labelEn: "Citrus",
+    labelZh: "偏酸清爽",
+    tone: "青柠和柠檬把酒香擦亮",
+    ingredients: ["新鲜柠檬汁 20ml", "糖浆 12ml"],
+    method: "加冰摇和 10 秒，滤入冰镇杯。",
+    garnish: "柠檬皮 / 青柠片"
+  },
+  {
+    id: "sweet",
+    labelEn: "Soft Sweet",
+    labelZh: "柔和偏甜",
+    tone: "甜感更柔和，入口更圆",
+    ingredients: ["柑橘汁 15ml", "糖浆 15ml", "橙酒 10ml"],
+    method: "加冰摇和，保持酸甜平衡。",
+    garnish: "橙皮 / 樱桃"
+  },
+  {
+    id: "strong",
+    labelEn: "Spirit Forward",
+    labelZh: "酒感明显",
+    tone: "酒体站在前面，后味更长",
+    ingredients: ["安戈斯图拉苦精 2 dash", "糖浆 5ml"],
+    method: "搅拌至冰镇，滤入装大冰块的古典杯。",
+    garnish: "橙皮"
+  },
+  {
+    id: "fizzy",
+    labelEn: "Fizzy",
+    labelZh: "气泡轻松",
+    tone: "气泡把酒感推轻一点",
+    ingredients: ["柠檬汁 15ml", "糖浆 10ml", "苏打水补满"],
+    method: "摇和基酒、酸和糖，入杯后补苏打轻搅。",
+    garnish: "青柠角 / 薄荷"
   }
 ];
