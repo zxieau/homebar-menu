@@ -241,6 +241,7 @@ export const drinks = [
     tags: ["热乎", "咸香", "下酒"],
     note: "炸得脆一点，配一点酱，适合所有人边聊边拿。",
     image: "assets/images/vintage/fries.webp",
+    fallbackImage: "assets/images/fries.jpg",
     sweetness: false,
     available: true,
     prepCue: {
@@ -265,6 +266,7 @@ export const drinks = [
     tags: ["酥脆", "一口", "热食"],
     note: "小块鸡米花，热的时候最好吃，旁边放一小碟蘸酱。",
     image: "assets/images/vintage/popcorn-chicken.webp",
+    fallbackImage: "assets/images/popcorn-chicken.jpg",
     sweetness: false,
     available: true,
     prepCue: {
@@ -289,6 +291,7 @@ export const drinks = [
     tags: ["薯片", "膨化", "分享"],
     note: "薯片、虾片、膨化圈这类轻松小零食，随手拼一小盘就很适合聊天。",
     image: "assets/images/vintage/bar-snacks.webp",
+    fallbackImage: "assets/images/bar-snacks.jpg",
     sweetness: false,
     available: true,
     prepCue: {
@@ -313,6 +316,7 @@ export const drinks = [
     tags: ["神秘", "专属", "特调"],
     note: "选一个基酒和一个风味方向，吧台会给你变出一杯今晚限定。",
     image: "assets/images/vintage/dealer-choice.webp",
+    fallbackImage: "assets/images/dealer-choice.jpg",
     sweetness: false,
     available: true
   }
