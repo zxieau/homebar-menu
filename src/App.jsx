@@ -14,6 +14,7 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase.js";
 const STORAGE_KEY = "jimmys-homebar-orders-v3";
 const SUBMITTED_TICKET_KEY = "jimmys-homebar-submitted-ticket-v1";
 const SUBMITTED_TICKETS_KEY = "jimmys-homebar-submitted-tickets-v2";
+const SERVED_STAMP_KEY = "jimmys-homebar-served-stamps-v1";
 const GUEST_NAME_KEY = "jimmys-bar-guest-name";
 const GUEST_ID_KEY = "jimmys-bar-guest-id";
 const ADMIN_SESSION_KEY = "jimmys-homebar-admin-unlocked";
@@ -341,6 +342,91 @@ function formatBackendItemAdjustments(item) {
   return [sweetness, ...selections, dealerDescription, item.remark].filter(Boolean);
 }
 
+function readServedStampIds() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SERVED_STAMP_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function markServedStampSeen(ticketId) {
+  const nextIds = Array.from(new Set([...readServedStampIds(), ticketId])).slice(-80);
+  window.localStorage.setItem(SERVED_STAMP_KEY, JSON.stringify(nextIds));
+}
+
+function getMenuItemById(itemId) {
+  return drinks.find((drink) => drink.id === itemId) || null;
+}
+
+function getAnonymousItems(order) {
+  return Array.isArray(order?.items) ? order.items : [];
+}
+
+function buildPulse(orders = []) {
+  const statusCounts = adminStatusSteps.reduce((acc, status) => {
+    acc[status.id] = 0;
+    return acc;
+  }, {});
+  const itemMap = new Map();
+  const categoryCounts = new Map();
+  let totalItems = 0;
+  let servedItems = 0;
+
+  for (const order of orders) {
+    const status = normalizeStatus(order.status);
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+    for (const item of getAnonymousItems(order)) {
+      const quantity = Number(item.quantity) || 1;
+      const key = item.drink_id || item.name_en || item.name_zh || "unknown";
+      const menuItem = getMenuItemById(item.drink_id);
+      const itemType = item.type || menuItem?.type || "drink";
+      const existing = itemMap.get(key) || {
+        id: key,
+        nameZh: item.name_zh || menuItem?.nameZh || "神秘小票",
+        nameEn: item.name_en || menuItem?.nameEn || "House Item",
+        type: itemType,
+        quantity: 0
+      };
+      existing.quantity += quantity;
+      itemMap.set(key, existing);
+      totalItems += quantity;
+
+      if (status === "served") {
+        servedItems += quantity;
+      }
+
+      const categoryId = menuItem?.category || (itemType === "snack" ? "snacks" : itemType === "custom" ? "mystery" : "unknown");
+      categoryCounts.set(categoryId, (categoryCounts.get(categoryId) || 0) + quantity);
+    }
+  }
+
+  const topItems = Array.from(itemMap.values())
+    .sort((a, b) => b.quantity - a.quantity || a.nameEn.localeCompare(b.nameEn))
+    .slice(0, 3);
+  const topCategoryId = Array.from(categoryCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  const topCategory = categories.find((category) => category.id === topCategoryId);
+  const moodCopy = topCategory
+    ? `${topCategory.en} is leading tonight / 今晚大家偏爱${topCategory.name}。`
+    : orders.length
+      ? "The board is waking up / 今晚吧台正在热起来。"
+      : "Tonight board is warming up / 今晚吧台正在热身。";
+
+  return {
+    totalTickets: orders.length,
+    totalItems,
+    servedItems,
+    queuedTickets: statusCounts.queued || 0,
+    mixingTickets: statusCounts.mixing || 0,
+    servedTickets: statusCounts.served || 0,
+    cancelledTickets: statusCounts.cancelled || 0,
+    topItems,
+    moodCopy
+  };
+}
+
 function getOrderGuestName(order) {
   return order?.guest_name?.trim() || "Guest / 未命名朋友";
 }
@@ -624,6 +710,19 @@ function GuestIdentity({ guestName, onChange }) {
   );
 }
 
+function ServedStampToast({ toast, onClose }) {
+  if (!toast) return null;
+
+  return (
+    <div className="served-toast" role="status" aria-live="polite">
+      <button type="button" onClick={onClose} aria-label="关闭已完成提示">×</button>
+      <p className="overline">Served / 已完成</p>
+      <h2>Ticket #{toast.ticketNo} is ready.</h2>
+      <span>Cheers, {toast.guestName}.</span>
+    </div>
+  );
+}
+
 function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
   const latestTicket = submittedTickets[0];
@@ -716,7 +815,7 @@ function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState
           {submittedTickets.length ? (
             <div className="submitted-ticket-list">
               {submittedTickets.map((ticket) => (
-                <article className="submitted-ticket" key={ticket.id}>
+                <article className={`submitted-ticket submitted-ticket--${ticket.status}`} key={ticket.id}>
                   <header>
                     <div>
                       <p className="overline">Ticket #{ticket.ticket_no}</p>
@@ -783,7 +882,7 @@ function normalizeSweetness(sweetness) {
 
 function normalizeStatus(status) {
   if (!status) return statusSteps[0].id;
-  if (statusSteps.some((item) => item.id === status)) return status;
+  if (adminStatusSteps.some((item) => item.id === status)) return status;
   return legacyStatusMap[status] || statusSteps[0].id;
 }
 
@@ -825,6 +924,7 @@ function CustomerApp() {
   const [submittedTickets, setSubmittedTickets] = useState(() => readSubmittedTickets());
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
   const [ticketNotice, setTicketNotice] = useState("");
+  const [servedToast, setServedToast] = useState(null);
   const [guestId] = useState(initialGuestProfile.guestId);
   const [guestName, setGuestName] = useState(initialGuestProfile.guestName);
 
@@ -894,6 +994,16 @@ function CustomerApp() {
       .channel("jimmys-orders-customer-tickets")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
         if (!knownIds.has(payload.new?.id)) return;
+        if (payload.new?.status === "served" && payload.old?.status !== "served") {
+          const servedIds = readServedStampIds();
+          if (!servedIds.includes(payload.new.id)) {
+            markServedStampSeen(payload.new.id);
+            setServedToast({
+              ticketNo: payload.new.ticket_no,
+              guestName: getOrderGuestName(payload.new)
+            });
+          }
+        }
         setSubmittedTickets((current) => current.map((ticket) => (ticket.id === payload.new.id ? payload.new : ticket)));
         setTicketNotice("");
       })
@@ -909,6 +1019,12 @@ function CustomerApp() {
       supabase.removeChannel(channel);
     };
   }, [submittedTickets.map((ticket) => ticket.id).join("|")]);
+
+  useEffect(() => {
+    if (!servedToast) return undefined;
+    const timer = window.setTimeout(() => setServedToast(null), 4200);
+    return () => window.clearTimeout(timer);
+  }, [servedToast]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined;
@@ -1118,6 +1234,7 @@ function CustomerApp() {
         onClose={() => setActiveDrink(null)}
         onAdd={addDrink}
       />
+      <ServedStampToast toast={servedToast} onClose={() => setServedToast(null)} />
     </>
   );
 }
@@ -1153,6 +1270,35 @@ function AdminLogin({ pin, setPin, error, onUnlock }) {
 function joinRecipeField(value) {
   if (Array.isArray(value)) return value.join(" / ");
   return value || "";
+}
+
+function AdminPulse({ pulse }) {
+  return (
+    <section className="admin-pulse" aria-label="Tonight Pulse">
+      <div>
+        <p className="overline">Tonight Pulse</p>
+        <h2>{pulse.totalTickets} tickets · {pulse.totalItems} items</h2>
+      </div>
+      <dl>
+        <div>
+          <dt>Queued</dt>
+          <dd>{pulse.queuedTickets}</dd>
+        </div>
+        <div>
+          <dt>Mixing</dt>
+          <dd>{pulse.mixingTickets}</dd>
+        </div>
+        <div>
+          <dt>Served</dt>
+          <dd>{pulse.servedTickets}</dd>
+        </div>
+        <div>
+          <dt>Done items</dt>
+          <dd>{pulse.servedItems}</dd>
+        </div>
+      </dl>
+    </section>
+  );
 }
 
 function AdminOrderCard({ order, recipeMap, onStatusChange }) {
@@ -1329,6 +1475,7 @@ function AdminApp() {
     return acc;
   }, {});
   const visibleOrders = orders.filter((order) => activeStatus === "all" || order.status === activeStatus);
+  const adminPulse = buildPulse(orders);
 
   return (
     <main className="admin-page">
@@ -1354,6 +1501,8 @@ function AdminApp() {
           </button>
         </div>
       </header>
+
+      <AdminPulse pulse={adminPulse} />
 
       <nav className="admin-filters" aria-label="订单状态筛选">
         <button type="button" className={activeStatus === "all" ? "is-active" : ""} onClick={() => setActiveStatus("all")}>

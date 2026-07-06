@@ -1229,10 +1229,41 @@ body.is-sheet-open .order-dock {
 }
 
 .submitted-ticket {
+  position: relative;
+  overflow: hidden;
   padding: 12px;
   background: rgba(255, 240, 200, 0.24);
   border: 1px solid rgba(35, 23, 15, 0.18);
   border-radius: 16px 19px 15px 20px;
+}
+
+.submitted-ticket--served {
+  background:
+    radial-gradient(circle at 86% 18%, rgba(240, 177, 91, 0.2), transparent 4rem),
+    rgba(255, 240, 200, 0.3);
+}
+
+.submitted-ticket--served::after {
+  content: "SERVED";
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 0;
+  color: rgba(106, 39, 31, 0.24);
+  border: 2px solid currentColor;
+  border-radius: 999px 720px 880px 820px;
+  padding: 4px 12px;
+  font-family: var(--font-en);
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+.submitted-ticket--served > * {
+  position: relative;
+  z-index: 1;
 }
 
 .submitted-ticket header span {
@@ -1284,6 +1315,89 @@ body.is-sheet-open .order-dock {
 .status-pill--1 { background: rgba(95, 98, 51, 0.24); }
 .status-pill--2 { color: var(--paper-light); background: var(--ink); }
 .status-pill--3 { color: var(--paper-light); background: var(--wine); }
+
+.served-toast {
+  position: fixed;
+  z-index: 120;
+  right: 16px;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  left: 16px;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 18px 18px 16px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 18%, rgba(255, 248, 218, 0.58), transparent 5rem),
+    linear-gradient(135deg, var(--paper-light), var(--paper) 68%, #d9ad67);
+  border: 2px solid rgba(106, 39, 31, 0.62);
+  border-radius: 22px 26px 20px 28px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+  animation: servedStampIn 260ms cubic-bezier(.2, .9, .25, 1.18) both;
+}
+
+.served-toast::before {
+  content: "SERVED";
+  position: absolute;
+  right: 18px;
+  top: 12px;
+  color: rgba(106, 39, 31, 0.36);
+  border: 2px solid currentColor;
+  border-radius: 999px 760px 860px 820px;
+  padding: 5px 13px;
+  font-family: var(--font-en);
+  font-size: 0.86rem;
+  font-weight: 950;
+  letter-spacing: 0.15em;
+  transform: rotate(-9deg);
+}
+
+.served-toast button {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  color: var(--paper-light);
+  background: var(--ink);
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.served-toast h2,
+.served-toast span {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+.served-toast h2 {
+  margin: 7px 74px 4px 0;
+  font-size: 1.24rem;
+  line-height: 1.1;
+}
+
+.served-toast span {
+  color: var(--ink-soft);
+  font-family: var(--font-en);
+  font-weight: 850;
+}
+
+@keyframes servedStampIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) rotate(2deg) scale(0.96);
+  }
+  72% {
+    transform: translateY(0) rotate(-1deg) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
 
 .site-footer {
   padding: 32px 16px 170px;
@@ -1469,6 +1583,69 @@ body.is-sheet-open .order-dock {
   font-weight: 900;
   letter-spacing: 0.08em;
   opacity: 0.82;
+}
+
+.admin-pulse {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 960px);
+  margin: 0 auto 14px;
+  padding: 14px;
+  color: var(--cream);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(240, 177, 91, 0.16), transparent 7rem),
+    rgba(255, 240, 200, 0.08);
+  border: 1px solid rgba(240, 177, 91, 0.22);
+  border-radius: 20px 24px 18px 26px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.admin-pulse h2 {
+  margin: 3px 0 0;
+  color: var(--lamp);
+  font-family: var(--font-menu);
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.admin-pulse dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.admin-pulse dl div {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 54px;
+  padding: 8px 5px;
+  background: rgba(255, 240, 200, 0.1);
+  border: 1px solid rgba(240, 177, 91, 0.16);
+  border-radius: 15px 18px 14px 20px;
+}
+
+.admin-pulse dt,
+.admin-pulse dd {
+  margin: 0;
+}
+
+.admin-pulse dt {
+  color: rgba(255, 240, 200, 0.7);
+  font-family: var(--font-en);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-pulse dd {
+  color: var(--paper-light);
+  font-family: var(--font-menu);
+  font-size: 1.32rem;
+  font-weight: 850;
+  line-height: 1;
 }
 
 .admin-filters {
