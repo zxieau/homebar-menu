@@ -2043,6 +2043,21 @@ body.is-sheet-open .order-dock {
     white-space: nowrap;
   }
 
+  .admin-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
+  }
+
+  .admin-filters button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 5px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
   .admin-hero {
     align-items: start;
     gap: 10px;
