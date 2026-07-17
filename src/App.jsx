@@ -44,6 +44,14 @@ function HeroIllustration() {
         src={assetUrl("assets/hero/jimmys-bar-hero-v2.webp")}
         alt=""
         aria-hidden="true"
+        decoding="async"
+        fetchPriority="high"
+        onError={(event) => {
+          const fallback = assetUrl("assets/hero/jimmys-bar-hero-v2.jpg");
+          if (event.currentTarget.src !== fallback) {
+            event.currentTarget.src = fallback;
+          }
+        }}
       />
       <div className="hero-handbill">
         <PaperMarks />
@@ -82,6 +90,7 @@ function DrinkImage({ drink, large = false }) {
         src={assetUrl(drink.image)}
         alt={`${drink.nameZh} 插画`}
         loading={large ? "eager" : "lazy"}
+        decoding="async"
         onError={(event) => {
           if (drink.fallbackImage && event.currentTarget.src !== assetUrl(drink.fallbackImage)) {
             event.currentTarget.src = assetUrl(drink.fallbackImage);

@@ -2026,23 +2026,6 @@ body.is-sheet-open .order-dock {
 }
 
 @media (max-width: 520px) {
-  .category-nav {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    padding: 8px 2px 11px;
-    overflow: visible;
-  }
-
-  .category-nav button {
-    min-width: 0;
-    min-height: 36px;
-    padding: 6px 5px;
-    font-size: 0.72rem;
-    line-height: 1.08;
-    white-space: nowrap;
-  }
-
   .admin-filters {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

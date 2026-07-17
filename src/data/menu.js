@@ -87,7 +87,7 @@ export const drinks = [
     tags: ["酸甜柔和", "圆润", "泡沫"],
     note: "黄柠檬把波本的木质香擦亮，入口圆润，酸甜收得干净。",
     image: "assets/images/vintage/whiskey-sour.webp",
-    fallbackImage: "assets/images/whiskey-sour.webp",
+    fallbackImage: "assets/images/whiskey-sour.jpg",
     sweetness: true,
     available: true
   },
@@ -104,7 +104,7 @@ export const drinks = [
     tags: ["清新", "利落", "青柠"],
     note: "白朗姆和青柠的直接组合，清爽、干净，不绕弯。",
     image: "assets/images/vintage/classic-daiquiri.webp",
-    fallbackImage: "assets/images/classic-daiquiri.webp",
+    fallbackImage: "assets/images/classic-daiquiri.jpg",
     sweetness: true,
     available: true
   },
@@ -121,7 +121,7 @@ export const drinks = [
     tags: ["草本", "青柠", "清冽"],
     note: "金酒的杜松草本感更明显，青柠让整体变得锋利清楚。",
     image: "assets/images/vintage/classic-gimlet.webp",
-    fallbackImage: "assets/images/classic-gimlet.webp",
+    fallbackImage: "assets/images/classic-gimlet.jpg",
     sweetness: true,
     available: true
   },
@@ -138,7 +138,7 @@ export const drinks = [
     tags: ["橙香", "轻盈", "柔和"],
     note: "金酒、橙酒和柠檬的组合，香气优雅，酒体轻盈。",
     image: "assets/images/vintage/white-lady.webp",
-    fallbackImage: "assets/images/white-lady.webp",
+    fallbackImage: "assets/images/white-lady.jpg",
     sweetness: true,
     available: true
   },
@@ -155,7 +155,7 @@ export const drinks = [
     tags: ["盐边", "明快", "微咸"],
     note: "龙舌兰、橙酒和青柠，盐边把酸味和酒香提得更清楚。",
     image: "assets/images/vintage/classic-margarita.webp",
-    fallbackImage: "assets/images/classic-margarita.webp",
+    fallbackImage: "assets/images/classic-margarita.jpg",
     sweetness: true,
     available: true
   },
@@ -172,7 +172,7 @@ export const drinks = [
     tags: ["气泡", "清爽", "轻松"],
     note: "金酒、汤力水和青柠，冰块足，气泡感清楚。",
     image: "assets/images/vintage/gin-tonic.webp",
-    fallbackImage: "assets/images/gin-tonic.webp",
+    fallbackImage: "assets/images/gin-tonic.jpg",
     sweetness: false,
     available: true
   },
@@ -189,7 +189,7 @@ export const drinks = [
     tags: ["后劲", "酸甜", "长饮"],
     note: "看起来轻松，酒感其实很足。适合慢一点喝。",
     image: "assets/images/vintage/long-island-iced-tea.webp",
-    fallbackImage: "assets/images/long-island-iced-tea.webp",
+    fallbackImage: "assets/images/long-island-iced-tea.jpg",
     sweetness: false,
     available: true
   },
@@ -206,7 +206,7 @@ export const drinks = [
     tags: ["冰冷", "直接", "酸感"],
     note: "伏特加打底，青柠和橙香负责把酸感拉出来。",
     image: "assets/images/vintage/kamikaze.webp",
-    fallbackImage: "assets/images/kamikaze.webp",
+    fallbackImage: "assets/images/kamikaze.jpg",
     sweetness: false,
     available: true
   },
@@ -223,7 +223,7 @@ export const drinks = [
     tags: ["经典", "苦甜", "慢饮"],
     note: "糖、苦精、橙皮和波本，酒感厚，余味更长。",
     image: "assets/images/vintage/old-fashioned.webp",
-    fallbackImage: "assets/images/old-fashioned.webp",
+    fallbackImage: "assets/images/old-fashioned.jpg",
     sweetness: false,
     available: true
   },
