@@ -41,13 +41,13 @@ function HeroIllustration() {
     <section className="hero-poster" aria-labelledby="hero-title">
       <img
         className="hero-artwork"
-        src={assetUrl("assets/hero/jimmys-bar-hero-v2.webp")}
+        src={assetUrl("assets/hero/jimmys-bar-hero-v2.jpg")}
         alt=""
         aria-hidden="true"
         decoding="async"
         fetchPriority="high"
         onError={(event) => {
-          const fallback = assetUrl("assets/hero/jimmys-bar-hero-v2.jpg");
+          const fallback = assetUrl("assets/hero/jimmys-bar-hero-v2.webp");
           if (event.currentTarget.src !== fallback) {
             event.currentTarget.src = fallback;
           }
