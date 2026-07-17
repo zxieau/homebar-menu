@@ -222,6 +222,150 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function loadCanvasImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function fitCanvasText(context, text, maxWidth, initialSize, minSize, fontFamily, weight = 700) {
+  let size = initialSize;
+  do {
+    context.font = `${weight} ${size}px ${fontFamily}`;
+    if (context.measureText(text).width <= maxWidth) return size;
+    size -= 2;
+  } while (size > minSize);
+  return minSize;
+}
+
+function drawCenteredCanvasText(context, text, y, options = {}) {
+  const {
+    color = "#2f2118",
+    font = 'Georgia, "Songti SC", serif',
+    size = 36,
+    weight = 700,
+    letterSpacing = 0
+  } = options;
+  context.save();
+  context.fillStyle = color;
+  context.font = `${weight} ${size}px ${font}`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+
+  if (!letterSpacing) {
+    context.fillText(text, 561, y);
+  } else {
+    const glyphs = Array.from(text);
+    const widths = glyphs.map((glyph) => context.measureText(glyph).width);
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0) + letterSpacing * (glyphs.length - 1);
+    let x = 561 - totalWidth / 2;
+    glyphs.forEach((glyph, index) => {
+      context.fillText(glyph, x + widths[index] / 2, y);
+      x += widths[index] + letterSpacing;
+    });
+  }
+  context.restore();
+}
+
+async function createKeepsakeImage(ticket) {
+  await document.fonts?.ready;
+  const background = await loadCanvasImage(assetUrl("assets/share/jimmys-night-keepsake-v1.webp"));
+  const canvas = document.createElement("canvas");
+  canvas.width = 1122;
+  canvas.height = 1402;
+  const context = canvas.getContext("2d");
+  context.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+  const guestName = getOrderGuestName(ticket).slice(0, 24);
+  const guestSize = fitCanvasText(
+    context,
+    guestName,
+    690,
+    82,
+    46,
+    'Georgia, "Songti SC", serif',
+    700
+  );
+  const dateLabel = ticket.created_at
+    ? new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(new Date(ticket.created_at))
+    : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(new Date());
+  const items = (Array.isArray(ticket.items) ? ticket.items : []).slice(0, 4);
+
+  drawCenteredCanvasText(context, "JIMMY'S HOME BAR", 236, {
+    size: 43,
+    color: "#352419",
+    letterSpacing: 5
+  });
+  drawCenteredCanvasText(context, "PRIVATE MENU · AFTER DUSK", 291, {
+    size: 21,
+    weight: 600,
+    color: "#765030",
+    letterSpacing: 3
+  });
+  drawCenteredCanvasText(context, "A NIGHT FOR", 450, {
+    size: 22,
+    weight: 700,
+    color: "#815d3b",
+    letterSpacing: 5
+  });
+  drawCenteredCanvasText(context, guestName, 523, {
+    size: guestSize,
+    color: "#2c1d14"
+  });
+
+  context.save();
+  context.strokeStyle = "rgba(82, 55, 35, 0.72)";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(333, 579);
+  context.lineTo(789, 579);
+  context.stroke();
+  context.restore();
+
+  drawCenteredCanvasText(context, `TICKET #${ticket.ticket_no || "—"}  ·  ${dateLabel}`, 622, {
+    size: 22,
+    weight: 600,
+    color: "#6d4a30",
+    letterSpacing: 1
+  });
+  drawCenteredCanvasText(context, "TONIGHT'S ORDER", 698, {
+    size: 22,
+    color: "#815d3b",
+    letterSpacing: 4
+  });
+
+  const itemStartY = 756;
+  items.forEach((item, index) => {
+    const label = `${item.name_en || item.name_zh || "House Pour"}  × ${item.quantity || 1}`;
+    const lineSize = fitCanvasText(context, label, 660, 34, 24, 'Georgia, "Songti SC", serif', 700);
+    drawCenteredCanvasText(context, label, itemStartY + index * 57, {
+      size: lineSize,
+      color: "#38271b"
+    });
+  });
+
+  if ((ticket.items || []).length > items.length) {
+    drawCenteredCanvasText(context, `+ ${(ticket.items || []).length - items.length} more from tonight's menu`, itemStartY + items.length * 57, {
+      size: 21,
+      weight: 600,
+      color: "#765030"
+    });
+  }
+
+  drawCenteredCanvasText(context, "JIMMY'S HOME BAR · SHANGHAI", 968, {
+    size: 19,
+    weight: 700,
+    color: "#765030",
+    letterSpacing: 3
+  });
+
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 function createGuestId() {
   return `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
 }
@@ -445,7 +589,12 @@ function isAdminRoute() {
 function CategoryNav({ activeCategory, onChange }) {
   return (
     <nav className="category-nav" aria-label="酒单分类">
-      <button type="button" className={activeCategory === "all" ? "is-active" : ""} onClick={() => onChange("all")}>
+      <button
+        type="button"
+        className={activeCategory === "all" ? "is-active" : ""}
+        aria-pressed={activeCategory === "all"}
+        onClick={() => onChange("all")}
+      >
         All
       </button>
       {categories.map((category) => (
@@ -453,6 +602,7 @@ function CategoryNav({ activeCategory, onChange }) {
           key={category.id}
           type="button"
           className={activeCategory === category.id ? "is-active" : ""}
+          aria-pressed={activeCategory === category.id}
           onClick={() => onChange(category.id)}
         >
           {category.shortLabel || `${category.en} / ${category.name}`}
@@ -512,7 +662,7 @@ function DrinkCard({ drink, category, focused, onOpen }) {
 
 function OptionChip({ option, selected, onToggle }) {
   return (
-    <button className={`option-chip ${selected ? "is-selected" : ""}`} type="button" onClick={onToggle}>
+    <button className={`option-chip ${selected ? "is-selected" : ""}`} type="button" aria-pressed={selected} onClick={onToggle}>
       <span className="option-chip__en">{option.labelEn}</span>
       <span className="option-chip__zh">{option.labelZh}</span>
     </button>
@@ -723,6 +873,106 @@ function ServedStampToast({ toast, onClose }) {
   );
 }
 
+function ShareKeepsakeSheet({ ticket, onClose }) {
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [shareState, setShareState] = useState({ loading: false, message: "", error: "" });
+
+  useEffect(() => {
+    if (!ticket) return undefined;
+    let cancelled = false;
+    setPreviewUrl("");
+    setShareState({ loading: true, message: "", error: "" });
+
+    createKeepsakeImage(ticket)
+      .then((url) => {
+        if (cancelled) return;
+        setPreviewUrl(url);
+        setShareState({ loading: false, message: "", error: "" });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setShareState({ loading: false, message: "", error: "纪念卡生成失败，请关闭后再试一次。" });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket?.id]);
+
+  if (!ticket) return null;
+
+  function downloadKeepsake() {
+    if (!previewUrl) return;
+    const link = document.createElement("a");
+    link.href = previewUrl;
+    link.download = `jimmys-home-bar-ticket-${ticket.ticket_no || "tonight"}.jpg`;
+    link.click();
+    setShareState({ loading: false, error: "", message: "图片已准备好；手机端也可以长按预览图保存。" });
+  }
+
+  async function shareKeepsake() {
+    if (!previewUrl || shareState.loading) return;
+    setShareState({ loading: true, message: "", error: "" });
+
+    try {
+      const blob = await fetch(previewUrl).then((response) => response.blob());
+      const file = new File([blob], `jimmys-home-bar-${ticket.ticket_no || "tonight"}.jpg`, { type: "image/jpeg" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({
+          files: [file],
+          title: "Jimmy’s Home Bar",
+          text: `今晚在 Jimmy’s Home Bar 的小票 #${ticket.ticket_no || "—"}`
+        });
+        setShareState({ loading: false, error: "", message: "分享面板已打开。" });
+        return;
+      }
+
+      downloadKeepsake();
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        setShareState({ loading: false, message: "", error: "" });
+      } else {
+        setShareState({ loading: false, message: "", error: "系统分享没有打开，可以长按图片保存。" });
+      }
+    }
+  }
+
+  return (
+    <div className="sheet-layer keepsake-layer" role="presentation">
+      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="关闭今晚纪念卡" />
+      <section className="keepsake-sheet" role="dialog" aria-modal="true" aria-labelledby="keepsake-title">
+        <button className="close-button" type="button" onClick={onClose} aria-label="关闭">×</button>
+        <header className="keepsake-sheet__header">
+          <p className="overline">A little secret from the bar</p>
+          <h2 id="keepsake-title">今晚纪念卡</h2>
+          <p>名字和今晚的小票会像油墨一样落在手绘菜单上。</p>
+        </header>
+
+        <div className="keepsake-preview" aria-live="polite">
+          {previewUrl ? (
+            <img src={previewUrl} alt={`${getOrderGuestName(ticket)} 在 Jimmy’s Home Bar 的今晚纪念卡`} />
+          ) : (
+            <div className="keepsake-loading">
+              <span aria-hidden="true" />
+              <p>{shareState.error || "正在盖上今晚的印记…"}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="keepsake-actions">
+          <button className="primary-button" type="button" onClick={shareKeepsake} disabled={!previewUrl || shareState.loading}>
+            {shareState.loading ? "Preparing..." : "Share Tonight / 分享"}
+          </button>
+          <button type="button" onClick={downloadKeepsake} disabled={!previewUrl}>Save Image / 保存图片</button>
+        </div>
+        <p className="keepsake-hint">朋友圈可从系统分享面板选择；若微信浏览器限制下载，请长按上方图片保存。</p>
+        {shareState.message && <p className="keepsake-message">{shareState.message}</p>}
+        {shareState.error && previewUrl && <p className="submit-error">{shareState.error}</p>}
+      </section>
+    </div>
+  );
+}
+
 function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
   const latestTicket = submittedTickets[0];
@@ -749,7 +999,7 @@ function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   );
 }
 
-function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState, onClose, onRemove, onClear, onSubmit }) {
+function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState, onClose, onRemove, onClear, onSubmit, onShare }) {
   if (!open) return null;
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
 
@@ -832,6 +1082,9 @@ function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState
                       </li>
                     ))}
                   </ul>
+                  <button className="keepsake-trigger" type="button" onClick={() => onShare(ticket)}>
+                    Make a Memory <span>生成今晚纪念卡</span>
+                  </button>
                 </article>
               ))}
             </div>
@@ -922,7 +1175,9 @@ function CustomerApp() {
   const [orders, setOrders] = useState(() => readStoredOrders());
   const [submitState, setSubmitState] = useState({ loading: false, error: "" });
   const [submittedTickets, setSubmittedTickets] = useState(() => readSubmittedTickets());
+  const submittedTicketsRef = useRef(submittedTickets);
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
+  const [shareTicket, setShareTicket] = useState(null);
   const [ticketNotice, setTicketNotice] = useState("");
   const [servedToast, setServedToast] = useState(null);
   const [guestId] = useState(initialGuestProfile.guestId);
@@ -960,6 +1215,7 @@ function CustomerApp() {
   useEffect(() => {
     window.localStorage.setItem(SUBMITTED_TICKETS_KEY, JSON.stringify(submittedTickets));
     window.localStorage.removeItem(SUBMITTED_TICKET_KEY);
+    submittedTicketsRef.current = submittedTickets;
   }, [submittedTickets]);
 
   useEffect(() => {
@@ -976,10 +1232,21 @@ function CustomerApp() {
 
       if (cancelled || error) return;
       if (data?.length) {
-        setSubmittedTickets((current) => {
-          const liveMap = new Map(data.map((ticket) => [ticket.id, ticket]));
-          return current.map((ticket) => liveMap.get(ticket.id) || ticket).filter((ticket) => liveMap.has(ticket.id));
+        const liveMap = new Map(data.map((ticket) => [ticket.id, ticket]));
+        const previousMap = new Map(submittedTicketsRef.current.map((ticket) => [ticket.id, ticket]));
+
+        data.forEach((ticket) => {
+          const previous = previousMap.get(ticket.id);
+          if (ticket.status === "served" && previous?.status !== "served") {
+            const servedIds = readServedStampIds();
+            if (!servedIds.includes(ticket.id)) {
+              markServedStampSeen(ticket.id);
+              setServedToast({ ticketNo: ticket.ticket_no, guestName: getOrderGuestName(ticket) });
+            }
+          }
         });
+
+        setSubmittedTickets((current) => current.map((ticket) => liveMap.get(ticket.id) || ticket).filter((ticket) => liveMap.has(ticket.id)));
         setTicketNotice("");
       } else {
         setSubmittedTickets([]);
@@ -989,6 +1256,7 @@ function CustomerApp() {
     }
 
     refreshSubmittedTickets();
+    const pollTimer = window.setInterval(refreshSubmittedTickets, 6000);
 
     const channel = supabase
       .channel("jimmys-orders-customer-tickets")
@@ -1016,6 +1284,7 @@ function CustomerApp() {
 
     return () => {
       cancelled = true;
+      window.clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
   }, [submittedTickets.map((ticket) => ticket.id).join("|")]);
@@ -1044,9 +1313,9 @@ function CustomerApp() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink) || ticketSheetOpen);
+    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink) || ticketSheetOpen || Boolean(shareTicket));
     return () => document.body.classList.remove("is-sheet-open");
-  }, [activeDrink, ticketSheetOpen]);
+  }, [activeDrink, ticketSheetOpen, shareTicket]);
 
   useEffect(() => {
     function updateFocusedCard() {
@@ -1225,6 +1494,10 @@ function CustomerApp() {
         onRemove={(orderId) => setOrders((current) => current.filter((order) => order.id !== orderId))}
         onClear={() => setOrders([])}
         onSubmit={submitTicket}
+        onShare={(ticket) => {
+          setTicketSheetOpen(false);
+          setShareTicket(ticket);
+        }}
       />
       <DrinkDetailSheet
         drink={activeDrink}
@@ -1234,6 +1507,7 @@ function CustomerApp() {
         onClose={() => setActiveDrink(null)}
         onAdd={addDrink}
       />
+      <ShareKeepsakeSheet ticket={shareTicket} onClose={() => setShareTicket(null)} />
       <ServedStampToast toast={servedToast} onClose={() => setServedToast(null)} />
     </>
   );
@@ -1375,7 +1649,7 @@ function AdminApp() {
   );
   const [unlocked, setUnlocked] = useState(() => Boolean(configuredPin) && window.sessionStorage.getItem(ADMIN_SESSION_KEY) === "true");
   const [orders, setOrders] = useState([]);
-  const [activeStatus, setActiveStatus] = useState("queued");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [adminState, setAdminState] = useState({ loading: false, error: "" });
   const [closeBarState, setCloseBarState] = useState({ loading: false, message: "", error: "" });
 
