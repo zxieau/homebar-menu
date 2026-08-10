@@ -9,7 +9,14 @@ import {
   sweetnessOptions
 } from "./data/menu.js";
 import { recipes } from "./data/recipes.js";
-import { isSupabaseConfigured, supabase } from "./lib/supabase.js";
+import {
+  clearOrders as clearBackendOrders,
+  createOrder,
+  isOrderBackendConfigured,
+  listOrders,
+  orderBackendName,
+  updateOrder
+} from "./lib/ordersApi.js";
 
 const STORAGE_KEY = "jimmys-homebar-orders-v3";
 const SUBMITTED_TICKET_KEY = "jimmys-homebar-submitted-ticket-v1";
@@ -18,11 +25,33 @@ const SERVED_STAMP_KEY = "jimmys-homebar-served-stamps-v1";
 const GUEST_NAME_KEY = "jimmys-bar-guest-name";
 const GUEST_ID_KEY = "jimmys-bar-guest-id";
 const ADMIN_SESSION_KEY = "jimmys-homebar-admin-unlocked";
+const FUNNY_MONEY_KEY = "jimmys-homebar-funny-money-v1";
 const cancelledStatus = { id: "cancelled", labelEn: "Cancelled", labelZh: "已取消" };
 const adminStatusSteps = [...statusSteps, cancelledStatus];
+const bartenderFortunes = [
+  "吧台签：今晚适合把时间调慢一点。",
+  "吧台签：别急着回家，街灯还亮着。",
+  "吧台签：酸一点的选择，通常更诚实。",
+  "吧台签：好故事总在冰块融化以后开始。",
+  "吧台签：你点的不是一杯，是今晚的暗号。"
+];
+const funnyMoneyOptions = [
+  { id: "j5", amount: "J$ 5", labelEn: "Tiny Tip", labelZh: "意思一下", receipt: "Jimmy 收到五块空气币，认真点了点头。" },
+  { id: "j20", amount: "J$ 20", labelEn: "Good Pour", labelZh: "这杯不错", receipt: "吧台收到二十块假钞，今晚手感 +20。" },
+  { id: "j88", amount: "J$ 88", labelEn: "Big Spender", labelZh: "假装阔气", receipt: "Jimmy 宣布今晚实现了虚拟财富自由。" },
+  { id: "infinite", amount: "J$ ∞", labelEn: "Make It Rain", labelZh: "豪掷空气", receipt: "无限额度已到账，可惜不能提现。" }
+];
 
 function assetUrl(path) {
   return `${import.meta.env.BASE_URL}${path}`;
+}
+
+function barSurfaceStyle() {
+  return {
+    "--paper-texture": `url("${assetUrl("assets/surfaces/menu-paper-stock-v2.webp")}")`,
+    "--menu-night-art": `url("${assetUrl("assets/surfaces/menu-night-continuum-v1.webp")}")`,
+    "--guest-slip-art": `url("${assetUrl("assets/surfaces/guest-name-slip-v1.webp")}")`
+  };
 }
 
 function PaperMarks() {
@@ -37,15 +66,55 @@ function PaperMarks() {
 }
 
 function HeroIllustration() {
+  const [secretVisible, setSecretVisible] = useState(false);
+  const lanternTapCount = useRef(0);
+  const lanternTimer = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(lanternTimer.current), []);
+
+  function handleLanternTap() {
+    window.clearTimeout(lanternTimer.current);
+    lanternTapCount.current += 1;
+
+    if (lanternTapCount.current >= 3) {
+      lanternTapCount.current = 0;
+      setSecretVisible(true);
+      lanternTimer.current = window.setTimeout(() => setSecretVisible(false), 5200);
+      return;
+    }
+
+    lanternTimer.current = window.setTimeout(() => {
+      lanternTapCount.current = 0;
+    }, 1500);
+  }
+
   return (
-    <section className="hero-poster" aria-labelledby="hero-title">
+    <section className={`hero-poster ${secretVisible ? "is-secret-lit" : ""}`} aria-labelledby="hero-title">
       <img
         className="hero-artwork"
-        src={assetUrl("assets/hero/jimmys-bar-hero-v2.webp")}
+        src={assetUrl("assets/hero/jimmys-bar-hero-v2.jpg")}
         alt=""
         aria-hidden="true"
+        decoding="async"
+        fetchPriority="high"
+        onError={(event) => {
+          const fallback = assetUrl("assets/hero/jimmys-bar-hero-v2.webp");
+          if (event.currentTarget.src !== fallback) {
+            event.currentTarget.src = fallback;
+          }
+        }}
       />
-      <div className="hero-handbill">
+      <button
+        className="hero-lantern-secret"
+        type="button"
+        onClick={handleLanternTap}
+        aria-label="路灯彩蛋，连续轻点三次"
+      />
+      <div className={`bar-secret-note ${secretVisible ? "is-visible" : ""}`} role="status" aria-live="polite">
+        <span>Tonight’s password</span>
+        <strong>把时间调慢一点</strong>
+      </div>
+      <div className="hero-handbill paper-surface paper-slip">
         <PaperMarks />
         <p className="overline">Private Home Bar</p>
         <h1 id="hero-title">Jimmy’s Bar</h1>
@@ -68,7 +137,7 @@ function HeroPoster() {
 
 function StrengthBadge({ level }) {
   return (
-    <span className="info-pill info-pill--strength" aria-label={`酒精度：${level}`}>
+    <span className="info-pill info-pill--strength ink-stamp" aria-label={`酒精度：${level}`}>
       <small>Strength</small>
       {level}
     </span>
@@ -82,6 +151,7 @@ function DrinkImage({ drink, large = false }) {
         src={assetUrl(drink.image)}
         alt={`${drink.nameZh} 插画`}
         loading={large ? "eager" : "lazy"}
+        decoding="async"
         onError={(event) => {
           if (drink.fallbackImage && event.currentTarget.src !== assetUrl(drink.fallbackImage)) {
             event.currentTarget.src = assetUrl(drink.fallbackImage);
@@ -94,7 +164,7 @@ function DrinkImage({ drink, large = false }) {
 
 function InfoPill({ label, value }) {
   return (
-    <span className="info-pill">
+    <span className="info-pill ink-stamp">
       <small>{label}</small>
       {value}
     </span>
@@ -222,6 +292,150 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function loadCanvasImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function fitCanvasText(context, text, maxWidth, initialSize, minSize, fontFamily, weight = 700) {
+  let size = initialSize;
+  do {
+    context.font = `${weight} ${size}px ${fontFamily}`;
+    if (context.measureText(text).width <= maxWidth) return size;
+    size -= 2;
+  } while (size > minSize);
+  return minSize;
+}
+
+function drawCenteredCanvasText(context, text, y, options = {}) {
+  const {
+    color = "#2f2118",
+    font = '"Cormorant Garamond Variable", "Noto Serif SC Variable", serif',
+    size = 36,
+    weight = 700,
+    letterSpacing = 0
+  } = options;
+  context.save();
+  context.fillStyle = color;
+  context.font = `${weight} ${size}px ${font}`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+
+  if (!letterSpacing) {
+    context.fillText(text, 561, y);
+  } else {
+    const glyphs = Array.from(text);
+    const widths = glyphs.map((glyph) => context.measureText(glyph).width);
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0) + letterSpacing * (glyphs.length - 1);
+    let x = 561 - totalWidth / 2;
+    glyphs.forEach((glyph, index) => {
+      context.fillText(glyph, x + widths[index] / 2, y);
+      x += widths[index] + letterSpacing;
+    });
+  }
+  context.restore();
+}
+
+async function createKeepsakeImage(ticket) {
+  await document.fonts?.ready;
+  const background = await loadCanvasImage(assetUrl("assets/share/jimmys-night-keepsake-v1.webp"));
+  const canvas = document.createElement("canvas");
+  canvas.width = 1122;
+  canvas.height = 1402;
+  const context = canvas.getContext("2d");
+  context.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+  const guestName = getOrderGuestName(ticket).slice(0, 24);
+  const guestSize = fitCanvasText(
+    context,
+    guestName,
+    690,
+    82,
+    46,
+    '"Cormorant Garamond Variable", "Noto Serif SC Variable", serif',
+    700
+  );
+  const dateLabel = ticket.created_at
+    ? new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(new Date(ticket.created_at))
+    : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(new Date());
+  const items = (Array.isArray(ticket.items) ? ticket.items : []).slice(0, 4);
+
+  drawCenteredCanvasText(context, "JIMMY'S HOME BAR", 236, {
+    size: 43,
+    color: "#352419",
+    letterSpacing: 5
+  });
+  drawCenteredCanvasText(context, "PRIVATE MENU · AFTER DUSK", 291, {
+    size: 21,
+    weight: 600,
+    color: "#765030",
+    letterSpacing: 3
+  });
+  drawCenteredCanvasText(context, "A NIGHT FOR", 450, {
+    size: 22,
+    weight: 700,
+    color: "#815d3b",
+    letterSpacing: 5
+  });
+  drawCenteredCanvasText(context, guestName, 523, {
+    size: guestSize,
+    color: "#2c1d14"
+  });
+
+  context.save();
+  context.strokeStyle = "rgba(82, 55, 35, 0.72)";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(333, 579);
+  context.lineTo(789, 579);
+  context.stroke();
+  context.restore();
+
+  drawCenteredCanvasText(context, `TICKET #${ticket.ticket_no || "—"}  ·  ${dateLabel}`, 622, {
+    size: 22,
+    weight: 600,
+    color: "#6d4a30",
+    letterSpacing: 1
+  });
+  drawCenteredCanvasText(context, "TONIGHT'S ORDER", 698, {
+    size: 22,
+    color: "#815d3b",
+    letterSpacing: 4
+  });
+
+  const itemStartY = 756;
+  items.forEach((item, index) => {
+    const label = `${item.name_en || item.name_zh || "House Pour"}  × ${item.quantity || 1}`;
+    const lineSize = fitCanvasText(context, label, 660, 34, 24, '"Cormorant Garamond Variable", "Noto Serif SC Variable", serif', 700);
+    drawCenteredCanvasText(context, label, itemStartY + index * 57, {
+      size: lineSize,
+      color: "#38271b"
+    });
+  });
+
+  if ((ticket.items || []).length > items.length) {
+    drawCenteredCanvasText(context, `+ ${(ticket.items || []).length - items.length} more from tonight's menu`, itemStartY + items.length * 57, {
+      size: 21,
+      weight: 600,
+      color: "#765030"
+    });
+  }
+
+  drawCenteredCanvasText(context, "A PRIVATE NIGHT AT JIMMY'S", 968, {
+    size: 19,
+    weight: 700,
+    color: "#765030",
+    letterSpacing: 3
+  });
+
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 function createGuestId() {
   return `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
 }
@@ -335,7 +549,50 @@ function serializeOrderItem(order) {
   };
 }
 
+function findFunnyMoney(optionId) {
+  return funnyMoneyOptions.find((option) => option.id === optionId) || null;
+}
+
+function serializeFunnyMoney(optionId) {
+  const option = findFunnyMoney(optionId);
+  if (!option) return null;
+  return {
+    line_id: `funny-money-${option.id}`,
+    type: "bar-cash",
+    drink_id: "jimmys-bar-cash",
+    name_zh: "给吧台的假钞",
+    name_en: "Jimmy’s Bar Cash",
+    quantity: 1,
+    funny_money: {
+      id: option.id,
+      amount: option.amount,
+      labelEn: option.labelEn,
+      labelZh: option.labelZh,
+      receipt: option.receipt
+    },
+    remark: "For fun only / 无需支付"
+  };
+}
+
+function createClientRequestId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `ticket-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildDraftTicketText(orders, guestName, funnyMoneyId) {
+  const lines = orders.map((order, index) => {
+    const adjustments = formatOrderAdjustments(order).join(" · ") || "House Pour / 默认配方";
+    return `${index + 1}. ${order.drink.nameZh} × ${order.quantity}\n   ${adjustments}`;
+  });
+  const funnyMoney = findFunnyMoney(funnyMoneyId);
+  if (funnyMoney) lines.push(`假装打赏：${funnyMoney.amount} · ${funnyMoney.labelZh}（无需支付）`);
+  return [`Jimmy’s Bar 备用小票`, `客人：${guestName}`, ...lines].join("\n");
+}
+
 function formatBackendItemAdjustments(item) {
+  if (item.type === "bar-cash") {
+    return [item.funny_money?.amount, item.funny_money?.labelZh, item.funny_money?.receipt].filter(Boolean);
+  }
   const sweetness = item.sweetness?.label || "";
   const selections = (item.selections || []).map((selection) => selection.label || `${selection.labelEn} / ${selection.labelZh}`);
   const dealerDescription = item.dealer_choice?.description || "";
@@ -442,17 +699,25 @@ function isAdminRoute() {
   return path === `${base}/admin` || path === "/admin" || window.location.hash === "#/admin";
 }
 
-function CategoryNav({ activeCategory, onChange }) {
+function CategoryNav({ activeCategory, onChange, navRef }) {
   return (
-    <nav className="category-nav" aria-label="酒单分类">
-      <button type="button" className={activeCategory === "all" ? "is-active" : ""} onClick={() => onChange("all")}>
+    <nav className="category-nav" aria-label="酒单分类" ref={navRef}>
+      <button
+        type="button"
+        data-category="all"
+        className={activeCategory === "all" ? "is-active" : ""}
+        aria-pressed={activeCategory === "all"}
+        onClick={() => onChange("all")}
+      >
         All
       </button>
       {categories.map((category) => (
         <button
           key={category.id}
           type="button"
+          data-category={category.id}
           className={activeCategory === category.id ? "is-active" : ""}
+          aria-pressed={activeCategory === category.id}
           onClick={() => onChange(category.id)}
         >
           {category.shortLabel || `${category.en} / ${category.name}`}
@@ -465,54 +730,139 @@ function CategoryNav({ activeCategory, onChange }) {
 function DrinkCard({ drink, category, focused, onOpen }) {
   const itemType = getItemType(drink);
   const actionLabel = itemType === "snack" ? "Add Snack" : itemType === "custom" ? "Make My Pour" : "Add to Ticket";
+  const gestureRef = useRef(null);
+  const resetTimerRef = useRef(null);
+  const swipeOffsetRef = useRef(0);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [swipeState, setSwipeState] = useState("idle");
+
+  useEffect(() => () => window.clearTimeout(resetTimerRef.current), []);
+
+  function updateSwipeOffset(value) {
+    swipeOffsetRef.current = value;
+    setSwipeOffset(value);
+  }
+
+  function resetSwipe() {
+    gestureRef.current = null;
+    setSwipeState("idle");
+    updateSwipeOffset(0);
+  }
+
+  function handlePointerDown(event) {
+    if (!drink.available || event.button !== 0 || event.target.closest("button, input, textarea")) return;
+    window.clearTimeout(resetTimerRef.current);
+    gestureRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      axis: ""
+    };
+    setSwipeState("tracking");
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handlePointerMove(event) {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+
+    const deltaX = event.clientX - gesture.x;
+    const deltaY = event.clientY - gesture.y;
+    if (!gesture.axis && Math.hypot(deltaX, deltaY) > 8) {
+      gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.18 ? "horizontal" : "vertical";
+    }
+    if (gesture.axis !== "horizontal") return;
+
+    event.preventDefault();
+    const resistedOffset = deltaX < 0
+      ? Math.max(-132, deltaX * 0.72)
+      : Math.min(12, deltaX * 0.1);
+    setSwipeState("dragging");
+    updateSwipeOffset(resistedOffset);
+  }
+
+  function handlePointerEnd(event) {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+
+    if (gesture.axis === "horizontal" && swipeOffsetRef.current <= -78) {
+      setSwipeState("committing");
+      updateSwipeOffset(-Math.min(window.innerWidth * 0.54, 210));
+      resetTimerRef.current = window.setTimeout(() => {
+        onOpen(drink);
+        resetSwipe();
+      }, 210);
+      return;
+    }
+
+    resetSwipe();
+  }
 
   return (
-    <article
-      className={`drink-card drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`}
+    <div
+      className={`drink-card-stage ${focused ? "is-focused" : ""} ${swipeState === "dragging" ? "is-dragging" : ""}`}
       data-drink-id={drink.id}
+      data-category={drink.category}
     >
-      <PaperMarks />
-      {!drink.available && <span className="soldout-stamp">今日售罄</span>}
-      <div className="drink-card__top">
-        <div>
-          <p className="overline">{category.code}. {category.en} / {category.name}</p>
-          <h3>{drink.nameZh}</h3>
-          <p className="drink-card__en">{drink.nameEn}</p>
+      <div className="swipe-reveal" aria-hidden="true">
+        <span>←</span>
+        <strong>今晚就它</strong>
+        <small>Pick this pour</small>
+      </div>
+      <article
+        className={`drink-card paper-surface drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"} ${swipeState === "committing" ? "is-swipe-committing" : ""}`}
+        data-category={drink.category}
+        style={{ "--swipe-offset": `${swipeOffset}px` }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+      >
+        <PaperMarks />
+        {!drink.available && <span className="soldout-stamp">今日售罄</span>}
+        {drink.available && <span className="swipe-peek" aria-hidden="true">‹</span>}
+        <div className="drink-card__top">
+          <div>
+            <p className="overline">{category.code}. {category.en} / {category.name}</p>
+            <h3>{drink.nameZh}</h3>
+            <p className="drink-card__en">{drink.nameEn}</p>
+          </div>
         </div>
-      </div>
-      <DrinkImage drink={drink} />
-      <p className="drink-card__note">{drink.note}</p>
-      <div className="tag-row" aria-label="风味标签">
-        {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
-      </div>
-      <div className="drink-card__meta">
-        {isDrinkItem(drink) ? (
-          <>
-            <InfoPill label="基酒" value={drink.base} />
-            <StrengthBadge level={drink.alcohol} />
-          </>
-        ) : isCustomItem(drink) ? (
-          <>
-            <InfoPill label="玩法" value="基酒 + 风味" />
-            <InfoPill label="出品" value="现场生成" />
-          </>
-        ) : (
-          <>
-            <InfoPill label="类别" value="小食" />
-            <InfoPill label="节奏" value="先上也可以" />
-          </>
-        )}
-      </div>
-      <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
-        {actionLabel}
-      </button>
-    </article>
+        <DrinkImage drink={drink} />
+        <p className="drink-card__note">{drink.note}</p>
+        <div className="tag-row" aria-label="风味标签">
+          {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
+        </div>
+        <div className="drink-card__meta">
+          {isDrinkItem(drink) ? (
+            <>
+              <InfoPill label="基酒" value={drink.base} />
+              <StrengthBadge level={drink.alcohol} />
+            </>
+          ) : isCustomItem(drink) ? (
+            <>
+              <InfoPill label="玩法" value="基酒 + 风味" />
+              <InfoPill label="出品" value="现场生成" />
+            </>
+          ) : (
+            <>
+              <InfoPill label="类别" value="小食" />
+              <InfoPill label="节奏" value="先上也可以" />
+            </>
+          )}
+        </div>
+        <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
+          {actionLabel}
+        </button>
+      </article>
+    </div>
   );
 }
 
 function OptionChip({ option, selected, onToggle }) {
   return (
-    <button className={`option-chip ${selected ? "is-selected" : ""}`} type="button" onClick={onToggle}>
+    <button className={`option-chip ${selected ? "is-selected" : ""}`} type="button" aria-pressed={selected} onClick={onToggle}>
       <span className="option-chip__en">{option.labelEn}</span>
       <span className="option-chip__zh">{option.labelZh}</span>
     </button>
@@ -538,7 +888,13 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
   return (
     <div className="sheet-layer" role="presentation">
       <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="关闭详情" />
-      <section className="detail-sheet" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <section
+        className="detail-sheet paper-surface"
+        data-category={drink.category}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-title"
+      >
         <button className="close-button" type="button" onClick={onClose} aria-label="关闭">×</button>
         <PaperMarks />
         <div className="detail-sheet__hero">
@@ -688,24 +1044,26 @@ function DrinkDetailSheet({ drink, draft, onPatchDraft, onToggleGroupedOption, o
 function StatusPill({ status }) {
   const statusItem = findStatus(status);
   const statusIndex = Math.max(0, adminStatusSteps.findIndex((item) => item.id === statusItem.id));
-  return <span className={`status-pill status-pill--${statusIndex}`}>{statusItem.labelEn} / {statusItem.labelZh}</span>;
+  return <span className={`status-pill ink-stamp status-pill--${statusIndex}`}>{statusItem.labelEn} / {statusItem.labelZh}</span>;
 }
 
 function GuestIdentity({ guestName, onChange }) {
   return (
-    <section className="guest-card" aria-label="点单昵称">
-      <div>
-        <p className="overline">Guest name</p>
-        <label htmlFor="guest-name">给自己取个名字，方便 Jimmy 送酒</label>
+    <section className="guest-card paper-surface paper-slip" aria-label="点单昵称">
+      <div className="guest-card__heading">
+        <p className="overline">Tonight’s guest</p>
+        <label htmlFor="guest-name">今晚怎么称呼你？</label>
       </div>
-      <input
-        id="guest-name"
-        type="text"
-        value={guestName}
-        maxLength={24}
-        placeholder="比如 Alex、3号桌、小王、蓝色卫衣"
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <div className="guest-card__field">
+        <input
+          id="guest-name"
+          type="text"
+          value={guestName}
+          maxLength={24}
+          placeholder="Alex、小王、蓝色卫衣…"
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
     </section>
   );
 }
@@ -723,6 +1081,122 @@ function ServedStampToast({ toast, onClose }) {
   );
 }
 
+function ShareKeepsakeSheet({ ticket, onClose }) {
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [fortune, setFortune] = useState("");
+  const [shareState, setShareState] = useState({ loading: false, message: "", error: "" });
+
+  useEffect(() => {
+    if (!ticket) return undefined;
+    let cancelled = false;
+    setPreviewUrl("");
+    setFortune("");
+    setShareState({ loading: true, message: "", error: "" });
+
+    createKeepsakeImage(ticket)
+      .then((url) => {
+        if (cancelled) return;
+        setPreviewUrl(url);
+        setShareState({ loading: false, message: "", error: "" });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setShareState({ loading: false, message: "", error: "纪念卡生成失败，请关闭后再试一次。" });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket?.id]);
+
+  if (!ticket) return null;
+
+  function revealFortune() {
+    const choices = bartenderFortunes.filter((item) => item !== fortune);
+    setFortune(choices[Math.floor(Math.random() * choices.length)] || bartenderFortunes[0]);
+  }
+
+  function downloadKeepsake() {
+    if (!previewUrl) return;
+    const link = document.createElement("a");
+    link.href = previewUrl;
+    link.download = `jimmys-home-bar-ticket-${ticket.ticket_no || "tonight"}.jpg`;
+    link.click();
+    setShareState({ loading: false, error: "", message: "图片已准备好；手机端也可以长按预览图保存。" });
+  }
+
+  async function shareKeepsake() {
+    if (!previewUrl || shareState.loading) return;
+    setShareState({ loading: true, message: "", error: "" });
+
+    try {
+      const blob = await fetch(previewUrl).then((response) => response.blob());
+      const file = new File([blob], `jimmys-home-bar-${ticket.ticket_no || "tonight"}.jpg`, { type: "image/jpeg" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({
+          files: [file],
+          title: "Jimmy’s Home Bar",
+          text: `今晚在 Jimmy’s Home Bar 的小票 #${ticket.ticket_no || "—"}`
+        });
+        setShareState({ loading: false, error: "", message: "分享面板已打开。" });
+        return;
+      }
+
+      downloadKeepsake();
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        setShareState({ loading: false, message: "", error: "" });
+      } else {
+        setShareState({ loading: false, message: "", error: "系统分享没有打开，可以长按图片保存。" });
+      }
+    }
+  }
+
+  return (
+    <div className="sheet-layer keepsake-layer" role="presentation">
+      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="关闭今晚纪念卡" />
+      <section className="keepsake-sheet" role="dialog" aria-modal="true" aria-labelledby="keepsake-title">
+        <button className="close-button" type="button" onClick={onClose} aria-label="关闭">×</button>
+        <header className="keepsake-sheet__header">
+          <p className="overline">A little secret from the bar</p>
+          <h2 id="keepsake-title">今晚纪念卡</h2>
+          <p>名字和今晚的小票会像油墨一样落在手绘菜单上。</p>
+        </header>
+
+        <div className="keepsake-preview" aria-live="polite">
+          {previewUrl ? (
+            <>
+              <img src={previewUrl} alt={`${getOrderGuestName(ticket)} 在 Jimmy’s Home Bar 的今晚纪念卡`} />
+              <button
+                className="keepsake-seal-secret"
+                type="button"
+                onClick={revealFortune}
+                aria-label="轻点火漆印章抽取今晚的吧台签"
+              />
+            </>
+          ) : (
+            <div className="keepsake-loading">
+              <span aria-hidden="true" />
+              <p>{shareState.error || "正在盖上今晚的印记…"}</p>
+            </div>
+          )}
+        </div>
+        {fortune && <p className="keepsake-fortune" role="status">{fortune}</p>}
+
+        <div className="keepsake-actions">
+          <button className="primary-button" type="button" onClick={shareKeepsake} disabled={!previewUrl || shareState.loading}>
+            {shareState.loading ? "Preparing..." : "Share Tonight / 分享"}
+          </button>
+          <button type="button" onClick={downloadKeepsake} disabled={!previewUrl}>Save Image / 保存图片</button>
+        </div>
+        <p className="keepsake-hint">朋友圈可从系统分享面板选择；若微信浏览器限制下载，请长按上方图片保存。</p>
+        {shareState.message && <p className="keepsake-message">{shareState.message}</p>}
+        {shareState.error && previewUrl && <p className="submit-error">{shareState.error}</p>}
+      </section>
+    </div>
+  );
+}
+
 function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
   const latestTicket = submittedTickets[0];
@@ -730,7 +1204,7 @@ function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
   if (!orders.length && !submittedTickets.length && !ticketNotice) return null;
 
   return (
-    <button className="order-dock order-dock--compact" type="button" onClick={onOpen} aria-live="polite">
+    <button className="order-dock order-dock--compact paper-surface paper-ticket" type="button" onClick={onOpen} aria-live="polite">
       <div>
         <p className="overline">{ticketNotice ? "Bar Notice" : "My Ticket"}</p>
         <h2>
@@ -743,20 +1217,35 @@ function OrderDock({ orders, submittedTickets, ticketNotice, onOpen }) {
       </div>
       <div className="order-dock__right">
         {latestTicket && <StatusPill status={latestTicket.status} />}
-        <span>View</span>
+        <span className="ticket-stub">View</span>
       </div>
     </button>
   );
 }
 
-function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState, onClose, onRemove, onClear, onSubmit }) {
+function TicketSheet({
+  open,
+  orders,
+  submittedTickets,
+  ticketNotice,
+  submitState,
+  funnyMoney,
+  fallbackOrderText,
+  onFunnyMoneyChange,
+  onClose,
+  onRemove,
+  onClear,
+  onSubmit,
+  onCopyFallback,
+  onShare
+}) {
   if (!open) return null;
   const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
 
   return (
     <div className="sheet-layer ticket-sheet-layer" role="presentation">
       <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="关闭我的订单" />
-      <section className="ticket-sheet" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
+      <section className="ticket-sheet paper-surface paper-ticket" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
         <button className="close-button" type="button" onClick={onClose} aria-label="关闭">×</button>
         <PaperMarks />
         <header className="ticket-sheet__header">
@@ -797,10 +1286,52 @@ function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState
           ) : (
             <p className="ticket-empty">还没有待发送的内容。选一杯酒，或者先加点小食。</p>
           )}
+          {orders.length > 0 && (
+            <div className="funny-money" aria-labelledby="funny-money-title">
+              <div className="funny-money__heading">
+                <div>
+                  <p className="overline">Jimmy’s Bar Cash</p>
+                  <h4 id="funny-money-title">假装打赏一下</h4>
+                </div>
+                <button
+                  className="funny-money__clear"
+                  type="button"
+                  onClick={() => onFunnyMoneyChange("")}
+                  disabled={!funnyMoney}
+                >
+                  不塞假钱
+                </button>
+              </div>
+              <p className="funny-money__note">纯属今晚的玩笑货币，没有支付，也没有任何真实价值。</p>
+              <div className="funny-money__notes" role="radiogroup" aria-label="选择一张 Jimmy’s Bar 假钞">
+                {funnyMoneyOptions.map((option) => (
+                  <button
+                    className={funnyMoney === option.id ? "is-selected" : ""}
+                    type="button"
+                    role="radio"
+                    aria-checked={funnyMoney === option.id}
+                    key={option.id}
+                    onClick={() => onFunnyMoneyChange(funnyMoney === option.id ? "" : option.id)}
+                  >
+                    <span>{option.amount}</span>
+                    <small>{option.labelEn}<br />{option.labelZh}</small>
+                  </button>
+                ))}
+              </div>
+              {funnyMoney && <p className="funny-money__receipt">{findFunnyMoney(funnyMoney)?.receipt}</p>}
+            </div>
+          )}
           {submitState.error && <p className="submit-error">{submitState.error}</p>}
+          {submitState.message && <p className="submit-message">{submitState.message}</p>}
+          {fallbackOrderText && (
+            <div className="ticket-fallback">
+              <button type="button" onClick={onCopyFallback}>Copy Backup / 复制备用小票</button>
+              <textarea readOnly value={fallbackOrderText} aria-label="备用订单文字" onFocus={(event) => event.currentTarget.select()} />
+            </div>
+          )}
           {orders.length > 0 && (
             <button className="submit-ticket-button" type="button" onClick={onSubmit} disabled={submitState.loading}>
-              {submitState.loading ? "Sending..." : "Send to Bar"}
+              {submitState.loading ? (submitState.phase || "Sending...") : (submitState.error ? "Retry Send / 重新发送" : "Send to Bar")}
             </button>
           )}
         </section>
@@ -826,12 +1357,15 @@ function TicketSheet({ open, orders, submittedTickets, ticketNotice, submitState
                   </header>
                   <ul>
                     {(Array.isArray(ticket.items) ? ticket.items : []).map((item) => (
-                      <li key={item.line_id || `${item.drink_id}-${item.name_en}`}>
-                        <span>{item.name_zh} × {item.quantity}</span>
+                      <li className={item.type === "bar-cash" ? "is-funny-money" : ""} key={item.line_id || `${item.drink_id}-${item.name_en}`}>
+                        <span>{item.type === "bar-cash" ? `${item.funny_money?.amount || "J$"} 假装塞进小费罐` : `${item.name_zh} × ${item.quantity}`}</span>
                         <small>{formatBackendItemAdjustments(item).join(" · ") || "House Pour / 默认配方"}</small>
                       </li>
                     ))}
                   </ul>
+                  <button className="keepsake-trigger" type="button" onClick={() => onShare(ticket)}>
+                    Make a Memory <span>生成今晚纪念卡</span>
+                  </button>
                 </article>
               ))}
             </div>
@@ -913,34 +1447,37 @@ function readStoredOrders() {
 
 function CustomerApp() {
   const deckRef = useRef(null);
-  const hasMountedRef = useRef(false);
+  const categoryNavRef = useRef(null);
   const initialGuestProfile = useMemo(() => readGuestProfile(), []);
   const [activeCategory, setActiveCategory] = useState("all");
   const [focusedDrinkId, setFocusedDrinkId] = useState(drinks[0].id);
   const [activeDrink, setActiveDrink] = useState(null);
   const [draft, setDraft] = useState(createDraft());
   const [orders, setOrders] = useState(() => readStoredOrders());
-  const [submitState, setSubmitState] = useState({ loading: false, error: "" });
+  const [submitState, setSubmitState] = useState({ loading: false, error: "", message: "", phase: "" });
+  const [funnyMoney, setFunnyMoney] = useState(() => window.localStorage.getItem(FUNNY_MONEY_KEY) || "");
+  const [fallbackOrderText, setFallbackOrderText] = useState("");
+  const submissionRequestRef = useRef({ fingerprint: "", id: "" });
   const [submittedTickets, setSubmittedTickets] = useState(() => readSubmittedTickets());
+  const submittedTicketsRef = useRef(submittedTickets);
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
+  const [shareTicket, setShareTicket] = useState(null);
   const [ticketNotice, setTicketNotice] = useState("");
   const [servedToast, setServedToast] = useState(null);
   const [guestId] = useState(initialGuestProfile.guestId);
   const [guestName, setGuestName] = useState(initialGuestProfile.guestName);
 
-  const visibleDrinks = useMemo(() => {
-    if (activeCategory === "all") return drinks;
-    return drinks.filter((drink) => drink.category === activeCategory);
-  }, [activeCategory]);
+  const visibleDrinks = drinks;
 
   useEffect(() => {
-    setFocusedDrinkId(visibleDrinks[0]?.id || drinks[0].id);
-    if (hasMountedRef.current) {
-      document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      hasMountedRef.current = true;
-    }
-  }, [visibleDrinks]);
+    const nav = categoryNavRef.current;
+    const activeButton = nav?.querySelector(`[data-category="${activeCategory}"]`);
+    if (!nav || !activeButton) return;
+    nav.scrollTo({
+      left: Math.max(0, activeButton.offsetLeft - (nav.clientWidth - activeButton.offsetWidth) / 2),
+      behavior: "smooth"
+    });
+  }, [activeCategory]);
 
   useEffect(() => {
     const stored = orders.map((order) => ({
@@ -960,26 +1497,44 @@ function CustomerApp() {
   useEffect(() => {
     window.localStorage.setItem(SUBMITTED_TICKETS_KEY, JSON.stringify(submittedTickets));
     window.localStorage.removeItem(SUBMITTED_TICKET_KEY);
+    submittedTicketsRef.current = submittedTickets;
   }, [submittedTickets]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !submittedTickets.length) return undefined;
+    if (funnyMoney) window.localStorage.setItem(FUNNY_MONEY_KEY, funnyMoney);
+    else window.localStorage.removeItem(FUNNY_MONEY_KEY);
+  }, [funnyMoney]);
+
+  useEffect(() => {
+    if (!isOrderBackendConfigured || !submittedTickets.length) return undefined;
 
     let cancelled = false;
     const knownIds = new Set(submittedTickets.map((ticket) => ticket.id));
 
     async function refreshSubmittedTickets() {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .in("id", Array.from(knownIds));
-
-      if (cancelled || error) return;
+      let data;
+      try {
+        data = await listOrders({ ids: Array.from(knownIds) });
+      } catch {
+        return;
+      }
+      if (cancelled) return;
       if (data?.length) {
-        setSubmittedTickets((current) => {
-          const liveMap = new Map(data.map((ticket) => [ticket.id, ticket]));
-          return current.map((ticket) => liveMap.get(ticket.id) || ticket).filter((ticket) => liveMap.has(ticket.id));
+        const liveMap = new Map(data.map((ticket) => [ticket.id, ticket]));
+        const previousMap = new Map(submittedTicketsRef.current.map((ticket) => [ticket.id, ticket]));
+
+        data.forEach((ticket) => {
+          const previous = previousMap.get(ticket.id);
+          if (ticket.status === "served" && previous?.status !== "served") {
+            const servedIds = readServedStampIds();
+            if (!servedIds.includes(ticket.id)) {
+              markServedStampSeen(ticket.id);
+              setServedToast({ ticketNo: ticket.ticket_no, guestName: getOrderGuestName(ticket) });
+            }
+          }
         });
+
+        setSubmittedTickets((current) => current.map((ticket) => liveMap.get(ticket.id) || ticket).filter((ticket) => liveMap.has(ticket.id)));
         setTicketNotice("");
       } else {
         setSubmittedTickets([]);
@@ -989,34 +1544,11 @@ function CustomerApp() {
     }
 
     refreshSubmittedTickets();
-
-    const channel = supabase
-      .channel("jimmys-orders-customer-tickets")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
-        if (!knownIds.has(payload.new?.id)) return;
-        if (payload.new?.status === "served" && payload.old?.status !== "served") {
-          const servedIds = readServedStampIds();
-          if (!servedIds.includes(payload.new.id)) {
-            markServedStampSeen(payload.new.id);
-            setServedToast({
-              ticketNo: payload.new.ticket_no,
-              guestName: getOrderGuestName(payload.new)
-            });
-          }
-        }
-        setSubmittedTickets((current) => current.map((ticket) => (ticket.id === payload.new.id ? payload.new : ticket)));
-        setTicketNotice("");
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, (payload) => {
-        if (!knownIds.has(payload.old?.id)) return;
-        setSubmittedTickets((current) => current.filter((ticket) => ticket.id !== payload.old.id));
-        setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
-      })
-      .subscribe();
+    const pollTimer = window.setInterval(refreshSubmittedTickets, 4000);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      window.clearInterval(pollTimer);
     };
   }, [submittedTickets.map((ticket) => ticket.id).join("|")]);
 
@@ -1027,43 +1559,33 @@ function CustomerApp() {
   }, [servedToast]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return undefined;
-
-    const channel = supabase
-      .channel("jimmys-orders-customer-close-bar")
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, () => {
-        setSubmittedTickets([]);
-        setOrders([]);
-        setTicketNotice("Tonight’s tickets cleared / 今晚订单已清空。");
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  useEffect(() => {
-    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink) || ticketSheetOpen);
+    document.body.classList.toggle("is-sheet-open", Boolean(activeDrink) || ticketSheetOpen || Boolean(shareTicket));
     return () => document.body.classList.remove("is-sheet-open");
-  }, [activeDrink, ticketSheetOpen]);
+  }, [activeDrink, ticketSheetOpen, shareTicket]);
 
   useEffect(() => {
     function updateFocusedCard() {
       const deck = deckRef.current;
       if (!deck) return;
-      const cards = Array.from(deck.querySelectorAll("[data-drink-id]"));
+      if (deck.getBoundingClientRect().top > window.innerHeight * 0.58) {
+        setActiveCategory((current) => (current === "all" ? current : "all"));
+        return;
+      }
+      const cards = Array.from(deck.querySelectorAll(".drink-card-stage[data-drink-id]"));
       const viewportCenter = window.scrollY + window.innerHeight / 2;
       const closest = cards.reduce((current, card) => {
         const rect = card.getBoundingClientRect();
         const cardCenter = window.scrollY + rect.top + rect.height / 2;
         const distance = Math.abs(cardCenter - viewportCenter);
-        if (!current || distance < current.distance) return { id: card.dataset.drinkId, distance };
+        if (!current || distance < current.distance) {
+          return { id: card.dataset.drinkId, category: card.dataset.category, distance };
+        }
         return current;
       }, null);
 
       if (closest?.id) {
         setFocusedDrinkId((current) => (current === closest.id ? current : closest.id));
+        setActiveCategory((current) => (current === closest.category ? current : closest.category));
       }
     }
 
@@ -1074,24 +1596,45 @@ function CustomerApp() {
       window.removeEventListener("scroll", updateFocusedCard);
       window.removeEventListener("resize", updateFocusedCard);
     };
-  }, [visibleDrinks]);
+  }, []);
 
   function handleDeckScroll() {
     const deck = deckRef.current;
     if (!deck) return;
-    const cards = Array.from(deck.querySelectorAll("[data-drink-id]"));
+    if (deck.getBoundingClientRect().top > window.innerHeight * 0.58) {
+      setActiveCategory("all");
+      return;
+    }
+    const cards = Array.from(deck.querySelectorAll(".drink-card-stage[data-drink-id]"));
     const viewportCenter = window.scrollY + window.innerHeight / 2;
     const closest = cards.reduce((current, card) => {
       const rect = card.getBoundingClientRect();
       const cardCenter = window.scrollY + rect.top + rect.height / 2;
       const distance = Math.abs(cardCenter - viewportCenter);
-      if (!current || distance < current.distance) return { id: card.dataset.drinkId, distance };
+      if (!current || distance < current.distance) {
+        return { id: card.dataset.drinkId, category: card.dataset.category, distance };
+      }
       return current;
     }, null);
 
     if (closest?.id && closest.id !== focusedDrinkId) {
       setFocusedDrinkId(closest.id);
+      setActiveCategory(closest.category);
     }
+  }
+
+  function handleCategoryChange(categoryId) {
+    const deck = deckRef.current;
+    const target = categoryId === "all"
+      ? deck?.querySelector(".drink-card-stage[data-drink-id]")
+      : deck?.querySelector(`.drink-card-stage[data-category="${categoryId}"]`);
+
+    setActiveCategory(categoryId);
+    if (!target) return;
+
+    const stickyHeight = categoryNavRef.current?.offsetHeight || 52;
+    const targetTop = window.scrollY + target.getBoundingClientRect().top - stickyHeight - 10;
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }
 
   function openDrink(drink) {
@@ -1149,50 +1692,76 @@ function CustomerApp() {
   async function submitTicket() {
     if (!orders.length || submitState.loading) return;
 
-    if (!isSupabaseConfigured) {
+    if (!isOrderBackendConfigured) {
       setSubmitState({
         loading: false,
-        error: "Supabase 尚未配置，今晚小票已保存在本机；配置 .env 后可提交到后台。"
+        error: "吧台订单服务尚未配置，今晚小票仍保存在手机里。",
+        message: "",
+        phase: ""
       });
       return;
     }
 
-    setSubmitState({ loading: true, error: "" });
+    const serializedItems = orders.map(serializeOrderItem);
+    const funnyMoneyItem = serializeFunnyMoney(funnyMoney);
+    const fingerprint = JSON.stringify({ guestId, items: serializedItems, funnyMoney });
+    if (submissionRequestRef.current.fingerprint !== fingerprint) {
+      submissionRequestRef.current = { fingerprint, id: createClientRequestId() };
+    }
+
+    setSubmitState({ loading: true, error: "", message: "", phase: "Sending..." });
+    setFallbackOrderText("");
 
     const payload = {
       status: "queued",
       guest_name: guestName.trim() || guestId,
       guest_id: guestId,
-      items: orders.map(serializeOrderItem)
+      items: funnyMoneyItem ? [...serializedItems, funnyMoneyItem] : serializedItems,
+      client_request_id: submissionRequestRef.current.id
     };
 
-    const { data, error } = await supabase
-      .from("orders")
-      .insert(payload)
-      .select("*")
-      .single();
-
-    if (error) {
+    try {
+      window.setTimeout(() => {
+        setSubmitState((current) => current.loading ? { ...current, phase: "Retrying... / 网络有点慢" } : current);
+      }, 8200);
+      const data = await createOrder(payload);
+      setSubmittedTickets((current) => upsertTicket(current, data));
+      setOrders([]);
+      setFunnyMoney("");
+      setFallbackOrderText("");
+      setTicketNotice("");
+      submissionRequestRef.current = { fingerprint: "", id: "" };
+      setSubmitState({ loading: false, error: "", message: `Ticket #${data.ticket_no} 已送进吧台。`, phase: "" });
+    } catch (error) {
+      const backupText = buildDraftTicketText(orders, guestName.trim() || guestId, funnyMoney);
+      setFallbackOrderText(backupText);
       setSubmitState({
         loading: false,
-        error: "网络或 Supabase 写入失败，小票没有丢，可以稍后重试。"
+        error: `没有连上吧台（${orderBackendName}）。小票没有丢，请重新发送；着急时可复制备用小票直接发给 Jimmy。`,
+        message: "",
+        phase: ""
       });
-      return;
     }
+  }
 
-    setSubmittedTickets((current) => upsertTicket(current, data));
-    setOrders([]);
-    setTicketNotice("");
-    setSubmitState({ loading: false, error: "" });
+  async function copyFallbackTicket() {
+    const text = fallbackOrderText || buildDraftTicketText(orders, guestName.trim() || guestId, funnyMoney);
+    try {
+      await navigator.clipboard.writeText(text);
+      setSubmitState((current) => ({ ...current, message: "备用小票已复制，可以直接粘贴给 Jimmy。" }));
+    } catch {
+      setFallbackOrderText(text);
+      setSubmitState((current) => ({ ...current, message: "请长按下方文字并复制给 Jimmy。" }));
+    }
   }
 
   return (
-    <>
+    <div className="customer-app" style={barSurfaceStyle()}>
       <a className="skip-link" href="#menu">跳到酒单</a>
       <HeroPoster />
       <main id="menu" className="menu-page">
         <GuestIdentity guestName={guestName} onChange={setGuestName} />
-        <CategoryNav activeCategory={activeCategory} onChange={setActiveCategory} />
+        <CategoryNav activeCategory={activeCategory} onChange={handleCategoryChange} navRef={categoryNavRef} />
         <section className="drink-deck" ref={deckRef} onPointerMove={handleDeckScroll} aria-label="鸡尾酒卡片">
           {visibleDrinks.map((drink) => (
             <DrinkCard
@@ -1221,10 +1790,23 @@ function CustomerApp() {
         submittedTickets={submittedTickets}
         ticketNotice={ticketNotice}
         submitState={submitState}
+        funnyMoney={funnyMoney}
+        fallbackOrderText={fallbackOrderText}
+        onFunnyMoneyChange={setFunnyMoney}
         onClose={() => setTicketSheetOpen(false)}
         onRemove={(orderId) => setOrders((current) => current.filter((order) => order.id !== orderId))}
-        onClear={() => setOrders([])}
+        onClear={() => {
+          setOrders([]);
+          setFunnyMoney("");
+          setFallbackOrderText("");
+          setSubmitState({ loading: false, error: "", message: "", phase: "" });
+        }}
         onSubmit={submitTicket}
+        onCopyFallback={copyFallbackTicket}
+        onShare={(ticket) => {
+          setTicketSheetOpen(false);
+          setShareTicket(ticket);
+        }}
       />
       <DrinkDetailSheet
         drink={activeDrink}
@@ -1234,14 +1816,15 @@ function CustomerApp() {
         onClose={() => setActiveDrink(null)}
         onAdd={addDrink}
       />
+      <ShareKeepsakeSheet ticket={shareTicket} onClose={() => setShareTicket(null)} />
       <ServedStampToast toast={servedToast} onClose={() => setServedToast(null)} />
-    </>
+    </div>
   );
 }
 
 function AdminLogin({ pin, setPin, error, onUnlock }) {
   return (
-    <main className="admin-page admin-page--login">
+    <main className="admin-page admin-page--login" style={barSurfaceStyle()}>
       <section className="admin-login">
         <PaperMarks />
         <p className="overline">Jimmy’s Back Bar</p>
@@ -1325,6 +1908,21 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
           const recipe = item.recipe_cue || recipeMap.get(item.drink_id);
           const adjustments = formatBackendItemAdjustments(item);
 
+          if (item.type === "bar-cash") {
+            return (
+              <section className="admin-line-item admin-line-item--funny-money" key={item.line_id || "bar-cash"}>
+                <div className="admin-funny-money__note">
+                  <span>{item.funny_money?.amount || "J$"}</span>
+                  <div>
+                    <p className="overline">Jimmy’s Bar Cash · For fun only</p>
+                    <h3>{item.funny_money?.labelEn} / {item.funny_money?.labelZh}</h3>
+                    <small>{item.funny_money?.receipt}</small>
+                  </div>
+                </div>
+              </section>
+            );
+          }
+
           return (
             <section className="admin-line-item" key={item.line_id || `${item.drink_id}-${item.name_en}`}>
               <div className="admin-line-item__summary">
@@ -1375,47 +1973,35 @@ function AdminApp() {
   );
   const [unlocked, setUnlocked] = useState(() => Boolean(configuredPin) && window.sessionStorage.getItem(ADMIN_SESSION_KEY) === "true");
   const [orders, setOrders] = useState([]);
-  const [activeStatus, setActiveStatus] = useState("queued");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [adminState, setAdminState] = useState({ loading: false, error: "" });
   const [closeBarState, setCloseBarState] = useState({ loading: false, message: "", error: "" });
 
   const recipeMap = useMemo(() => new Map(recipes.map((recipe) => [recipe.drinkId, recipe])), []);
 
   async function loadOrders() {
-    if (!isSupabaseConfigured) {
-      setAdminState({ loading: false, error: "Supabase 尚未配置。请先创建项目、执行 SQL，并填写 .env。" });
+    if (!isOrderBackendConfigured) {
+      setAdminState({ loading: false, error: "订单服务尚未配置。" });
       return;
     }
 
     setAdminState({ loading: true, error: "" });
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(80);
-
-    if (error) {
-      setAdminState({ loading: false, error: "订单读取失败，请检查 Supabase URL、anon key 和 RLS policy。" });
-      return;
+    try {
+      const data = await listOrders();
+      setOrders(data || []);
+      setAdminState({ loading: false, error: "" });
+    } catch {
+      setAdminState({ loading: false, error: `订单读取失败，请检查 ${orderBackendName} 订单服务。` });
     }
-
-    setOrders(data || []);
-    setAdminState({ loading: false, error: "" });
   }
 
   useEffect(() => {
     if (!unlocked) return undefined;
     loadOrders();
-
-    if (!isSupabaseConfigured) return undefined;
-
-    const channel = supabase
-      .channel("jimmys-orders-admin")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, loadOrders)
-      .subscribe();
+    const pollTimer = window.setInterval(loadOrders, 3000);
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearInterval(pollTimer);
     };
   }, [unlocked]);
 
@@ -1435,29 +2021,27 @@ function AdminApp() {
   }
 
   async function updateOrderStatus(orderId, status) {
-    if (!isSupabaseConfigured) return;
+    if (!isOrderBackendConfigured) return;
     setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, status } : order)));
-    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
-    if (error) {
+    try {
+      await updateOrder(orderId, status, configuredPin);
+    } catch {
       setAdminState({ loading: false, error: "状态更新失败，已保留页面当前显示；请刷新确认。" });
       loadOrders();
     }
   }
 
   async function closeBar() {
-    if (!isSupabaseConfigured || closeBarState.loading) return;
+    if (!isOrderBackendConfigured || closeBarState.loading) return;
     const confirmed = window.confirm("确定要打烊并清空所有订单吗？该操作会删除所有当前订单，无法恢复。");
     if (!confirmed) return;
 
     setCloseBarState({ loading: true, message: "", error: "" });
-    // 营业结束重置订单：清空当前 orders 表，让所有顾客端通过 realtime 同步归零。
-    const { error } = await supabase
-      .from("orders")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (error) {
-      setCloseBarState({ loading: false, message: "", error: "打烊失败，请检查 Supabase delete policy 后重试。" });
+    // 营业结束重置订单：清空统一订单服务，顾客端在下一次轮询时同步归零。
+    try {
+      await clearBackendOrders(configuredPin);
+    } catch {
+      setCloseBarState({ loading: false, message: "", error: "打烊失败，请检查订单服务后重试。" });
       loadOrders();
       return;
     }
@@ -1478,7 +2062,7 @@ function AdminApp() {
   const adminPulse = buildPulse(orders);
 
   return (
-    <main className="admin-page">
+    <main className="admin-page" style={barSurfaceStyle()}>
       <header className="admin-hero">
         <div>
           <p className="overline">Jimmy’s Back Bar</p>
