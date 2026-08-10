@@ -31,7 +31,11 @@ async function requestApi(path, { method = "GET", body, adminPin, timeout = REQU
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw makeError(result.error || `订单服务返回 ${response.status}`, { status: response.status });
+      throw makeError(result.error || `订单服务返回 ${response.status}`, {
+        status: response.status,
+        data: result.data,
+        requestId: result.requestId
+      });
     }
     return result.data;
   } catch (error) {

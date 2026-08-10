@@ -17,6 +17,7 @@ import {
   orderBackendName,
   updateOrder
 } from "./lib/ordersApi.js";
+import { findJimmyCoin, isJimmyCoinItem, jimmyCoinOptions, serializeJimmyCoin } from "./lib/jimmyCoins.js";
 
 const STORAGE_KEY = "jimmys-homebar-orders-v3";
 const SUBMITTED_TICKET_KEY = "jimmys-homebar-submitted-ticket-v1";
@@ -25,7 +26,8 @@ const SERVED_STAMP_KEY = "jimmys-homebar-served-stamps-v1";
 const GUEST_NAME_KEY = "jimmys-bar-guest-name";
 const GUEST_ID_KEY = "jimmys-bar-guest-id";
 const ADMIN_SESSION_KEY = "jimmys-homebar-admin-unlocked";
-const FUNNY_MONEY_KEY = "jimmys-homebar-funny-money-v1";
+const JIMMY_COIN_KEY = "jimmys-homebar-jimmy-coin-v1";
+const LEGACY_FUNNY_MONEY_KEY = "jimmys-homebar-funny-money-v1";
 const cancelledStatus = { id: "cancelled", labelEn: "Cancelled", labelZh: "已取消" };
 const adminStatusSteps = [...statusSteps, cancelledStatus];
 const bartenderFortunes = [
@@ -35,13 +37,6 @@ const bartenderFortunes = [
   "吧台签：好故事总在冰块融化以后开始。",
   "吧台签：你点的不是一杯，是今晚的暗号。"
 ];
-const funnyMoneyOptions = [
-  { id: "j5", amount: "J$ 5", labelEn: "Tiny Tip", labelZh: "意思一下", receipt: "Jimmy 收到五块空气币，认真点了点头。" },
-  { id: "j20", amount: "J$ 20", labelEn: "Good Pour", labelZh: "这杯不错", receipt: "吧台收到二十块假钞，今晚手感 +20。" },
-  { id: "j88", amount: "J$ 88", labelEn: "Big Spender", labelZh: "假装阔气", receipt: "Jimmy 宣布今晚实现了虚拟财富自由。" },
-  { id: "infinite", amount: "J$ ∞", labelEn: "Make It Rain", labelZh: "豪掷空气", receipt: "无限额度已到账，可惜不能提现。" }
-];
-
 function assetUrl(path) {
   return `${import.meta.env.BASE_URL}${path}`;
 }
@@ -50,7 +45,9 @@ function barSurfaceStyle() {
   return {
     "--paper-texture": `url("${assetUrl("assets/surfaces/menu-paper-stock-v2.webp")}")`,
     "--menu-night-art": `url("${assetUrl("assets/surfaces/menu-night-continuum-v1.webp")}")`,
-    "--guest-slip-art": `url("${assetUrl("assets/surfaces/guest-name-slip-v1.webp")}")`
+    "--guest-slip-art": `url("${assetUrl("assets/surfaces/guest-name-slip-v1.webp")}")`,
+    "--dusk-transition-art": `url("${assetUrl("assets/editorial/dusk-to-menu-v1.webp")}")`,
+    "--emberline-art": `url("${assetUrl("assets/editorial/emberline-v1.webp")}")`
   };
 }
 
@@ -132,6 +129,14 @@ function HeroPoster() {
     <header className="hero">
       <HeroIllustration />
     </header>
+  );
+}
+
+function EditorialTransition() {
+  return (
+    <div className="editorial-transition" aria-hidden="true">
+      <span />
+    </div>
   );
 }
 
@@ -549,31 +554,6 @@ function serializeOrderItem(order) {
   };
 }
 
-function findFunnyMoney(optionId) {
-  return funnyMoneyOptions.find((option) => option.id === optionId) || null;
-}
-
-function serializeFunnyMoney(optionId) {
-  const option = findFunnyMoney(optionId);
-  if (!option) return null;
-  return {
-    line_id: `funny-money-${option.id}`,
-    type: "bar-cash",
-    drink_id: "jimmys-bar-cash",
-    name_zh: "给吧台的假钞",
-    name_en: "Jimmy’s Bar Cash",
-    quantity: 1,
-    funny_money: {
-      id: option.id,
-      amount: option.amount,
-      labelEn: option.labelEn,
-      labelZh: option.labelZh,
-      receipt: option.receipt
-    },
-    remark: "For fun only / 无需支付"
-  };
-}
-
 function createClientRequestId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `ticket-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -584,13 +564,13 @@ function buildDraftTicketText(orders, guestName, funnyMoneyId) {
     const adjustments = formatOrderAdjustments(order).join(" · ") || "House Pour / 默认配方";
     return `${index + 1}. ${order.drink.nameZh} × ${order.quantity}\n   ${adjustments}`;
   });
-  const funnyMoney = findFunnyMoney(funnyMoneyId);
-  if (funnyMoney) lines.push(`假装打赏：${funnyMoney.amount} · ${funnyMoney.labelZh}（无需支付）`);
+  const jimmyCoin = findJimmyCoin(funnyMoneyId);
+  if (jimmyCoin) lines.push(`吉米币：${jimmyCoin.amount} · ${jimmyCoin.labelZh}`);
   return [`Jimmy’s Bar 备用小票`, `客人：${guestName}`, ...lines].join("\n");
 }
 
 function formatBackendItemAdjustments(item) {
-  if (item.type === "bar-cash") {
+  if (isJimmyCoinItem(item)) {
     return [item.funny_money?.amount, item.funny_money?.labelZh, item.funny_money?.receipt].filter(Boolean);
   }
   const sweetness = item.sweetness?.label || "";
@@ -730,98 +710,19 @@ function CategoryNav({ activeCategory, onChange, navRef }) {
 function DrinkCard({ drink, category, focused, onOpen }) {
   const itemType = getItemType(drink);
   const actionLabel = itemType === "snack" ? "Add Snack" : itemType === "custom" ? "Make My Pour" : "Add to Ticket";
-  const gestureRef = useRef(null);
-  const resetTimerRef = useRef(null);
-  const swipeOffsetRef = useRef(0);
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const [swipeState, setSwipeState] = useState("idle");
-
-  useEffect(() => () => window.clearTimeout(resetTimerRef.current), []);
-
-  function updateSwipeOffset(value) {
-    swipeOffsetRef.current = value;
-    setSwipeOffset(value);
-  }
-
-  function resetSwipe() {
-    gestureRef.current = null;
-    setSwipeState("idle");
-    updateSwipeOffset(0);
-  }
-
-  function handlePointerDown(event) {
-    if (!drink.available || event.button !== 0 || event.target.closest("button, input, textarea")) return;
-    window.clearTimeout(resetTimerRef.current);
-    gestureRef.current = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      axis: ""
-    };
-    setSwipeState("tracking");
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }
-
-  function handlePointerMove(event) {
-    const gesture = gestureRef.current;
-    if (!gesture || gesture.id !== event.pointerId) return;
-
-    const deltaX = event.clientX - gesture.x;
-    const deltaY = event.clientY - gesture.y;
-    if (!gesture.axis && Math.hypot(deltaX, deltaY) > 8) {
-      gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.18 ? "horizontal" : "vertical";
-    }
-    if (gesture.axis !== "horizontal") return;
-
-    event.preventDefault();
-    const resistedOffset = deltaX < 0
-      ? Math.max(-132, deltaX * 0.72)
-      : Math.min(12, deltaX * 0.1);
-    setSwipeState("dragging");
-    updateSwipeOffset(resistedOffset);
-  }
-
-  function handlePointerEnd(event) {
-    const gesture = gestureRef.current;
-    if (!gesture || gesture.id !== event.pointerId) return;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-
-    if (gesture.axis === "horizontal" && swipeOffsetRef.current <= -78) {
-      setSwipeState("committing");
-      updateSwipeOffset(-Math.min(window.innerWidth * 0.54, 210));
-      resetTimerRef.current = window.setTimeout(() => {
-        onOpen(drink);
-        resetSwipe();
-      }, 210);
-      return;
-    }
-
-    resetSwipe();
-  }
 
   return (
     <div
-      className={`drink-card-stage ${focused ? "is-focused" : ""} ${swipeState === "dragging" ? "is-dragging" : ""}`}
+      className={`drink-card-stage ${focused ? "is-focused" : ""}`}
       data-drink-id={drink.id}
       data-category={drink.category}
     >
-      <div className="swipe-reveal" aria-hidden="true">
-        <span>←</span>
-        <strong>今晚就它</strong>
-        <small>Pick this pour</small>
-      </div>
       <article
-        className={`drink-card paper-surface drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"} ${swipeState === "committing" ? "is-swipe-committing" : ""}`}
+        className={`drink-card paper-surface drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`}
         data-category={drink.category}
-        style={{ "--swipe-offset": `${swipeOffset}px` }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
       >
         <PaperMarks />
         {!drink.available && <span className="soldout-stamp">今日售罄</span>}
-        {drink.available && <span className="swipe-peek" aria-hidden="true">‹</span>}
         <div className="drink-card__top">
           <div>
             <p className="overline">{category.code}. {category.en} / {category.name}</p>
@@ -1287,11 +1188,11 @@ function TicketSheet({
             <p className="ticket-empty">还没有待发送的内容。选一杯酒，或者先加点小食。</p>
           )}
           {orders.length > 0 && (
-            <div className="funny-money" aria-labelledby="funny-money-title">
+            <div className="funny-money jimmy-coins" aria-labelledby="jimmy-coins-title">
               <div className="funny-money__heading">
                 <div>
-                  <p className="overline">Jimmy’s Bar Cash</p>
-                  <h4 id="funny-money-title">假装打赏一下</h4>
+                  <p className="overline">Jimmy Coins</p>
+                  <h4 id="jimmy-coins-title">吉米币</h4>
                 </div>
                 <button
                   className="funny-money__clear"
@@ -1299,12 +1200,12 @@ function TicketSheet({
                   onClick={() => onFunnyMoneyChange("")}
                   disabled={!funnyMoney}
                 >
-                  不塞假钱
+                  暂时不加
                 </button>
               </div>
-              <p className="funny-money__note">纯属今晚的玩笑货币，没有支付，也没有任何真实价值。</p>
-              <div className="funny-money__notes" role="radiogroup" aria-label="选择一张 Jimmy’s Bar 假钞">
-                {funnyMoneyOptions.map((option) => (
+              <p className="funny-money__note">给今晚的吧台加一点好运。</p>
+              <div className="funny-money__notes" role="radiogroup" aria-label="选择吉米币数量">
+                {jimmyCoinOptions.map((option) => (
                   <button
                     className={funnyMoney === option.id ? "is-selected" : ""}
                     type="button"
@@ -1318,7 +1219,7 @@ function TicketSheet({
                   </button>
                 ))}
               </div>
-              {funnyMoney && <p className="funny-money__receipt">{findFunnyMoney(funnyMoney)?.receipt}</p>}
+              {funnyMoney && <p className="funny-money__receipt">{findJimmyCoin(funnyMoney)?.receipt}</p>}
             </div>
           )}
           {submitState.error && <p className="submit-error">{submitState.error}</p>}
@@ -1357,8 +1258,8 @@ function TicketSheet({
                   </header>
                   <ul>
                     {(Array.isArray(ticket.items) ? ticket.items : []).map((item) => (
-                      <li className={item.type === "bar-cash" ? "is-funny-money" : ""} key={item.line_id || `${item.drink_id}-${item.name_en}`}>
-                        <span>{item.type === "bar-cash" ? `${item.funny_money?.amount || "J$"} 假装塞进小费罐` : `${item.name_zh} × ${item.quantity}`}</span>
+                      <li className={isJimmyCoinItem(item) ? "is-funny-money" : ""} key={item.line_id || `${item.drink_id}-${item.name_en}`}>
+                        <span>{isJimmyCoinItem(item) ? `吉米币 × ${item.funny_money?.amount || "—"}` : `${item.name_zh} × ${item.quantity}`}</span>
                         <small>{formatBackendItemAdjustments(item).join(" · ") || "House Pour / 默认配方"}</small>
                       </li>
                     ))}
@@ -1455,7 +1356,9 @@ function CustomerApp() {
   const [draft, setDraft] = useState(createDraft());
   const [orders, setOrders] = useState(() => readStoredOrders());
   const [submitState, setSubmitState] = useState({ loading: false, error: "", message: "", phase: "" });
-  const [funnyMoney, setFunnyMoney] = useState(() => window.localStorage.getItem(FUNNY_MONEY_KEY) || "");
+  const [funnyMoney, setFunnyMoney] = useState(
+    () => window.localStorage.getItem(JIMMY_COIN_KEY) || window.localStorage.getItem(LEGACY_FUNNY_MONEY_KEY) || ""
+  );
   const [fallbackOrderText, setFallbackOrderText] = useState("");
   const submissionRequestRef = useRef({ fingerprint: "", id: "" });
   const [submittedTickets, setSubmittedTickets] = useState(() => readSubmittedTickets());
@@ -1501,8 +1404,9 @@ function CustomerApp() {
   }, [submittedTickets]);
 
   useEffect(() => {
-    if (funnyMoney) window.localStorage.setItem(FUNNY_MONEY_KEY, funnyMoney);
-    else window.localStorage.removeItem(FUNNY_MONEY_KEY);
+    if (funnyMoney) window.localStorage.setItem(JIMMY_COIN_KEY, funnyMoney);
+    else window.localStorage.removeItem(JIMMY_COIN_KEY);
+    window.localStorage.removeItem(LEGACY_FUNNY_MONEY_KEY);
   }, [funnyMoney]);
 
   useEffect(() => {
@@ -1598,31 +1502,6 @@ function CustomerApp() {
     };
   }, []);
 
-  function handleDeckScroll() {
-    const deck = deckRef.current;
-    if (!deck) return;
-    if (deck.getBoundingClientRect().top > window.innerHeight * 0.58) {
-      setActiveCategory("all");
-      return;
-    }
-    const cards = Array.from(deck.querySelectorAll(".drink-card-stage[data-drink-id]"));
-    const viewportCenter = window.scrollY + window.innerHeight / 2;
-    const closest = cards.reduce((current, card) => {
-      const rect = card.getBoundingClientRect();
-      const cardCenter = window.scrollY + rect.top + rect.height / 2;
-      const distance = Math.abs(cardCenter - viewportCenter);
-      if (!current || distance < current.distance) {
-        return { id: card.dataset.drinkId, category: card.dataset.category, distance };
-      }
-      return current;
-    }, null);
-
-    if (closest?.id && closest.id !== focusedDrinkId) {
-      setFocusedDrinkId(closest.id);
-      setActiveCategory(closest.category);
-    }
-  }
-
   function handleCategoryChange(categoryId) {
     const deck = deckRef.current;
     const target = categoryId === "all"
@@ -1703,7 +1582,7 @@ function CustomerApp() {
     }
 
     const serializedItems = orders.map(serializeOrderItem);
-    const funnyMoneyItem = serializeFunnyMoney(funnyMoney);
+    const funnyMoneyItem = serializeJimmyCoin(funnyMoney);
     const fingerprint = JSON.stringify({ guestId, items: serializedItems, funnyMoney });
     if (submissionRequestRef.current.fingerprint !== fingerprint) {
       submissionRequestRef.current = { fingerprint, id: createClientRequestId() };
@@ -1759,10 +1638,12 @@ function CustomerApp() {
     <div className="customer-app" style={barSurfaceStyle()}>
       <a className="skip-link" href="#menu">跳到酒单</a>
       <HeroPoster />
+      <EditorialTransition />
       <main id="menu" className="menu-page">
         <GuestIdentity guestName={guestName} onChange={setGuestName} />
+        <div className="emberline-divider" aria-hidden="true" />
         <CategoryNav activeCategory={activeCategory} onChange={handleCategoryChange} navRef={categoryNavRef} />
-        <section className="drink-deck" ref={deckRef} onPointerMove={handleDeckScroll} aria-label="鸡尾酒卡片">
+        <section className="drink-deck" ref={deckRef} aria-label="鸡尾酒卡片">
           {visibleDrinks.map((drink) => (
             <DrinkCard
               key={drink.id}
@@ -1908,14 +1789,14 @@ function AdminOrderCard({ order, recipeMap, onStatusChange }) {
           const recipe = item.recipe_cue || recipeMap.get(item.drink_id);
           const adjustments = formatBackendItemAdjustments(item);
 
-          if (item.type === "bar-cash") {
+          if (isJimmyCoinItem(item)) {
             return (
               <section className="admin-line-item admin-line-item--funny-money" key={item.line_id || "bar-cash"}>
                 <div className="admin-funny-money__note">
-                  <span>{item.funny_money?.amount || "J$"}</span>
+                  <span>{item.funny_money?.amount || "—"}</span>
                   <div>
-                    <p className="overline">Jimmy’s Bar Cash · For fun only</p>
-                    <h3>{item.funny_money?.labelEn} / {item.funny_money?.labelZh}</h3>
+                    <p className="overline">Jimmy Coins / 吉米币</p>
+                    <h3>吉米币 × {item.funny_money?.amount || "—"}</h3>
                     <small>{item.funny_money?.receipt}</small>
                   </div>
                 </div>
@@ -2039,15 +1920,27 @@ function AdminApp() {
     setCloseBarState({ loading: true, message: "", error: "" });
     // 营业结束重置订单：清空统一订单服务，顾客端在下一次轮询时同步归零。
     try {
-      await clearBackendOrders(configuredPin);
-    } catch {
-      setCloseBarState({ loading: false, message: "", error: "打烊失败，请检查订单服务后重试。" });
-      loadOrders();
+      const result = await clearBackendOrders(configuredPin);
+      if (Number(result?.remaining || 0) !== 0) {
+        throw new Error("订单未完全清空，请再试一次。");
+      }
+      await loadOrders();
+      setOrders([]);
+      setCloseBarState({
+        loading: false,
+        message: `已打烊，清空 ${Number(result?.deleted || 0)} 张订单。`,
+        error: ""
+      });
+    } catch (error) {
+      const requestId = error?.cause?.requestId ? `（Request ${error.cause.requestId}）` : "";
+      setCloseBarState({
+        loading: false,
+        message: "",
+        error: `${error?.message || "打烊失败，请检查订单服务后重试。"}${requestId}`
+      });
+      await loadOrders();
       return;
     }
-
-    setOrders([]);
-    setCloseBarState({ loading: false, message: "已打烊，订单已清空。", error: "" });
   }
 
   if (!unlocked) {

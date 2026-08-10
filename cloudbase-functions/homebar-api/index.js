@@ -1,9 +1,12 @@
 const cloudbase = require("@cloudbase/node-sdk");
 const crypto = require("crypto");
+const { deleteAllOrders } = require("./closeBar.js");
 
 const app = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
 const db = app.database();
-const orders = db.collection("homebar_orders");
+const functionName = process.env.SCF_FUNCTIONNAME || process.env.TENCENTCLOUD_RUNENV || "";
+const ordersCollectionName = process.env.ORDERS_COLLECTION || (functionName.includes("homebar-api-qa") ? "homebar_orders_qa" : "homebar_orders");
+const orders = db.collection(ordersCollectionName);
 const allowedStatuses = new Set(["queued", "mixing", "served", "cancelled"]);
 const adminPinHash = "a3989830416a74226f2b3156f4a722b02357d43454305a3512f43cb944c66b8b";
 
@@ -51,7 +54,8 @@ function normalize(document) {
 
 function pathOf(event) {
   const raw = event.path || event.requestContext?.path || "/";
-  const marker = "/homebar-api";
+  // QA 与正式函数共用同一套路由；必须先匹配较长的 QA 前缀。
+  const marker = raw.includes("/homebar-api-qa") ? "/homebar-api-qa" : "/homebar-api";
   const index = raw.indexOf(marker);
   const trimmed = index >= 0 ? raw.slice(index + marker.length) : raw;
   return trimmed || "/";
@@ -113,14 +117,26 @@ async function updateOrder(event, orderId) {
 
 async function closeBar(event) {
   if (!isAdmin(event)) return json(403, { error: "后台 PIN 校验失败" });
-  let deleted = 0;
-  for (let round = 0; round < 5; round += 1) {
-    const result = await orders.where({}).remove();
-    const count = Number(result.deleted || 0);
-    deleted += count;
-    if (!count) break;
+  try {
+    const result = await deleteAllOrders(orders, db.command);
+    if (result.remaining > 0) {
+      return json(500, {
+        error: "订单未完全清空，请重试",
+        data: result
+      });
+    }
+    return json(200, { data: result });
+  } catch (error) {
+    console.error("close-bar", error);
+    return json(500, {
+      error: error.message || "打烊清单失败，请稍后重试",
+      data: {
+        deleted: Number(error.deleted || 0),
+        remaining: -1
+      },
+      requestId: error.requestId || error.request_id || ""
+    });
   }
-  return json(200, { data: { deleted } });
 }
 
 exports.main = async (event) => {
@@ -130,7 +146,7 @@ exports.main = async (event) => {
   try {
     const path = pathOf(event);
     if (method === "GET" && (path === "/" || path === "/health")) {
-      return json(200, { data: { ok: true, service: "homebar-api" } });
+      return json(200, { data: { ok: true, service: "homebar-api", collection: ordersCollectionName } });
     }
     if (method === "GET" && path === "/orders") return listOrders(event);
     if (method === "POST" && path === "/orders") return createOrder(event);
