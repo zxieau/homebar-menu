@@ -43,11 +43,7 @@ function assetUrl(path) {
 
 function barSurfaceStyle() {
   return {
-    "--paper-texture": `url("${assetUrl("assets/surfaces/menu-paper-stock-v2.webp")}")`,
-    "--menu-night-art": `url("${assetUrl("assets/surfaces/menu-night-continuum-v1.webp")}")`,
-    "--guest-slip-art": `url("${assetUrl("assets/surfaces/guest-name-slip-v1.webp")}")`,
-    "--dusk-transition-art": `url("${assetUrl("assets/editorial/dusk-to-menu-v1.webp")}")`,
-    "--emberline-art": `url("${assetUrl("assets/editorial/emberline-v1.webp")}")`
+    "--paper-texture": `url("${assetUrl("assets/surfaces/menu-paper-stock-v2.webp")}")`
   };
 }
 
@@ -89,17 +85,11 @@ function HeroIllustration() {
     <section className={`hero-poster ${secretVisible ? "is-secret-lit" : ""}`} aria-labelledby="hero-title">
       <img
         className="hero-artwork"
-        src={assetUrl("assets/hero/jimmys-bar-hero-v2.jpg")}
+        src={assetUrl("assets/editorial-v2/hero-after-dusk.webp")}
         alt=""
         aria-hidden="true"
         decoding="async"
         fetchPriority="high"
-        onError={(event) => {
-          const fallback = assetUrl("assets/hero/jimmys-bar-hero-v2.webp");
-          if (event.currentTarget.src !== fallback) {
-            event.currentTarget.src = fallback;
-          }
-        }}
       />
       <button
         className="hero-lantern-secret"
@@ -111,8 +101,7 @@ function HeroIllustration() {
         <span>Tonight’s password</span>
         <strong>把时间调慢一点</strong>
       </div>
-      <div className="hero-handbill paper-surface paper-slip">
-        <PaperMarks />
+      <div className="hero-handbill">
         <p className="overline">Private Home Bar</p>
         <h1 id="hero-title">Jimmy’s Bar</h1>
         <p className="hero-subtitle">Menu after dusk</p>
@@ -129,14 +118,6 @@ function HeroPoster() {
     <header className="hero">
       <HeroIllustration />
     </header>
-  );
-}
-
-function EditorialTransition() {
-  return (
-    <div className="editorial-transition" aria-hidden="true">
-      <span />
-    </div>
   );
 }
 
@@ -718,11 +699,11 @@ function DrinkCard({ drink, category, focused, onOpen }) {
       data-category={drink.category}
     >
       <article
-        className={`drink-card paper-surface drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`}
+        className={`drink-card drink-card--${itemType} ${focused ? "is-focused" : ""} ${drink.available ? "" : "is-sold-out"}`}
         data-category={drink.category}
       >
-        <PaperMarks />
         {!drink.available && <span className="soldout-stamp">今日售罄</span>}
+        <DrinkImage drink={drink} />
         <div className="drink-card__top">
           <div>
             <p className="overline">{category.code}. {category.en} / {category.name}</p>
@@ -730,32 +711,33 @@ function DrinkCard({ drink, category, focused, onOpen }) {
             <p className="drink-card__en">{drink.nameEn}</p>
           </div>
         </div>
-        <DrinkImage drink={drink} />
-        <p className="drink-card__note">{drink.note}</p>
-        <div className="tag-row" aria-label="风味标签">
-          {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
+        <div className="drink-card__body">
+          <p className="drink-card__note">{drink.note}</p>
+          <div className="tag-row" aria-label="风味标签">
+            {drink.tags.map((tag) => <span key={tag}>{tag}</span>)}
+          </div>
+          <div className="drink-card__meta">
+            {isDrinkItem(drink) ? (
+              <>
+                <InfoPill label="基酒" value={drink.base} />
+                <StrengthBadge level={drink.alcohol} />
+              </>
+            ) : isCustomItem(drink) ? (
+              <>
+                <InfoPill label="玩法" value="基酒 + 风味" />
+                <InfoPill label="出品" value="现场生成" />
+              </>
+            ) : (
+              <>
+                <InfoPill label="类别" value="小食" />
+                <InfoPill label="节奏" value="先上也可以" />
+              </>
+            )}
+          </div>
+          <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
+            {actionLabel}
+          </button>
         </div>
-        <div className="drink-card__meta">
-          {isDrinkItem(drink) ? (
-            <>
-              <InfoPill label="基酒" value={drink.base} />
-              <StrengthBadge level={drink.alcohol} />
-            </>
-          ) : isCustomItem(drink) ? (
-            <>
-              <InfoPill label="玩法" value="基酒 + 风味" />
-              <InfoPill label="出品" value="现场生成" />
-            </>
-          ) : (
-            <>
-              <InfoPill label="类别" value="小食" />
-              <InfoPill label="节奏" value="先上也可以" />
-            </>
-          )}
-        </div>
-        <button className="ticket-button" type="button" disabled={!drink.available} onClick={() => onOpen(drink)}>
-          {actionLabel}
-        </button>
       </article>
     </div>
   );
@@ -1638,10 +1620,8 @@ function CustomerApp() {
     <div className="customer-app" style={barSurfaceStyle()}>
       <a className="skip-link" href="#menu">跳到酒单</a>
       <HeroPoster />
-      <EditorialTransition />
       <main id="menu" className="menu-page">
         <GuestIdentity guestName={guestName} onChange={setGuestName} />
-        <div className="emberline-divider" aria-hidden="true" />
         <CategoryNav activeCategory={activeCategory} onChange={handleCategoryChange} navRef={categoryNavRef} />
         <section className="drink-deck" ref={deckRef} aria-label="鸡尾酒卡片">
           {visibleDrinks.map((drink) => (

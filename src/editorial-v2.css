@@ -1,0 +1,842 @@
+/*
+ * After Dusk — image-led editorial system
+ * One continuous material language for the customer-facing menu.
+ */
+
+.customer-app {
+  --after-night: #141210;
+  --after-soot: #1d1a17;
+  --after-ash: #2b2723;
+  --after-bone: #e9dfcd;
+  --after-muted: #ab9c86;
+  --after-amber: #d49a50;
+  --after-oxblood: #743a32;
+  min-height: 100svh;
+  color: var(--after-bone);
+  background: var(--after-night);
+  font-family: var(--font-zh);
+}
+
+.customer-app::before,
+.customer-app::after,
+.customer-app .menu-page::before,
+.customer-app .paper-marks,
+.customer-app .swipe-reveal,
+.customer-app .swipe-peek {
+  display: none;
+}
+
+.customer-app .overline {
+  color: var(--after-amber);
+  font-family: var(--font-en);
+  font-size: 0.68rem;
+  font-weight: 690;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Hero is the first chapter, not a card above the menu. */
+.customer-app .hero {
+  min-height: min(76svh, 720px);
+  padding: 0;
+  overflow: hidden;
+  background: var(--after-night);
+}
+
+.customer-app .hero::after {
+  z-index: 3;
+  height: 34%;
+  background: linear-gradient(180deg, transparent, rgba(20, 18, 16, 0.64) 48%, var(--after-night));
+}
+
+.customer-app .hero-poster {
+  width: min(100%, 780px);
+  min-height: min(76svh, 720px);
+  overflow: hidden;
+  background: var(--after-night);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.customer-app .hero-poster::before {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(8, 7, 6, 0.18), transparent 58%),
+    linear-gradient(180deg, rgba(8, 7, 6, 0.02) 26%, rgba(8, 7, 6, 0.2) 58%, rgba(8, 7, 6, 0.88));
+}
+
+.customer-app .hero-poster::after {
+  display: none;
+}
+
+.customer-app .hero-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 52% 48%;
+  filter: saturate(0.82) contrast(1.04) brightness(0.88);
+  transform: scale(1.01);
+}
+
+.customer-app .hero-handbill {
+  position: relative;
+  z-index: 4;
+  width: min(calc(100% - 42px), 570px);
+  margin: 0 auto clamp(34px, 8svh, 66px);
+  padding: 0;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+}
+
+.customer-app .hero-handbill::before,
+.customer-app .hero-handbill::after {
+  display: none;
+}
+
+.customer-app .hero-handbill h1 {
+  max-width: 8ch;
+  margin: 7px 0 0;
+  color: #f1e6d4;
+  font-family: var(--font-menu);
+  font-size: clamp(3.25rem, 15vw, 5.2rem);
+  font-weight: 630;
+  line-height: 0.82;
+  letter-spacing: -0.055em;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.62);
+}
+
+.customer-app .hero-subtitle {
+  margin-top: 12px;
+  color: rgba(233, 223, 205, 0.7);
+  font-family: var(--font-en);
+  font-size: 1rem;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+.customer-app .rule-line {
+  width: 74px;
+  height: 1px;
+  margin: 15px 0 12px;
+  background: var(--after-amber);
+  opacity: 0.74;
+}
+
+.customer-app .hero-copy {
+  margin: 0;
+  color: rgba(233, 223, 205, 0.84);
+  font-size: 0.9rem;
+  font-weight: 560;
+  line-height: 1.6;
+}
+
+.customer-app .hero-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 0 0 2px;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(212, 154, 80, 0.72);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-en);
+  font-size: 1rem;
+  font-weight: 680;
+  letter-spacing: 0.06em;
+  opacity: 1;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.48);
+}
+
+.customer-app .hero-link::after {
+  margin-left: 10px;
+  color: var(--after-amber);
+  content: "↓";
+}
+
+.customer-app .hero-lantern-secret {
+  top: 4%;
+  left: 5%;
+  width: 34%;
+  height: 30%;
+}
+
+.customer-app .bar-secret-note {
+  top: 24px;
+  right: 20px;
+  color: var(--after-bone);
+  background: rgba(20, 18, 16, 0.78);
+  border: 1px solid rgba(212, 154, 80, 0.25);
+  border-radius: 18px 8px 18px 8px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+/* Menu continues the same charcoal canvas. */
+.customer-app .menu-page {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 0 0 calc(150px + env(safe-area-inset-bottom));
+  color: var(--after-bone);
+  background:
+    radial-gradient(circle at 16% 0, rgba(212, 154, 80, 0.07), transparent 22rem),
+    var(--after-night);
+}
+
+.customer-app .guest-card {
+  position: relative;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(130px, 1fr);
+  align-items: end;
+  gap: 18px;
+  margin: 0;
+  padding: 24px 20px 19px;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.customer-app .guest-card__heading .overline {
+  margin: 0;
+  color: rgba(212, 154, 80, 0.76);
+  font-size: 0.59rem;
+}
+
+.customer-app .guest-card__heading label {
+  margin-top: 4px;
+  color: rgba(233, 223, 205, 0.72);
+  font-size: 0.76rem;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.customer-app .guest-card__field {
+  position: relative;
+}
+
+.customer-app .guest-card__field::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, var(--after-amber), rgba(212, 154, 80, 0.08));
+}
+
+.customer-app .guest-card input {
+  width: 100%;
+  min-height: 40px;
+  padding: 5px 0 7px;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-family: var(--font-menu);
+  font-size: 1.05rem;
+  font-weight: 650;
+  outline: 0;
+}
+
+.customer-app .guest-card input::placeholder {
+  color: rgba(233, 223, 205, 0.3);
+}
+
+.customer-app .category-nav {
+  top: env(safe-area-inset-top);
+  z-index: 42;
+  gap: 24px;
+  min-height: 50px;
+  margin: 0;
+  padding: 7px 20px 8px;
+  overflow-x: auto;
+  background: rgba(20, 18, 16, 0.9);
+  border: 0;
+  border-top: 1px solid rgba(233, 223, 205, 0.07);
+  border-bottom: 1px solid rgba(233, 223, 205, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+  scroll-snap-type: none;
+}
+
+.customer-app .category-nav button {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 4px 0;
+  color: rgba(233, 223, 205, 0.48);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-en);
+  font-size: 0.84rem;
+  font-weight: 660;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+}
+
+.customer-app .category-nav button::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: var(--after-amber);
+  opacity: 0;
+  transform: scaleX(0.2);
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.customer-app .category-nav button.is-active {
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.customer-app .category-nav button.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Each item is a visual chapter rather than a product card. */
+.customer-app .drink-deck {
+  padding: 18px 0 8px;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.customer-app .drink-card-stage {
+  min-height: 0;
+  margin: 0 0 34px;
+  scroll-margin-top: calc(58px + env(safe-area-inset-top));
+}
+
+.customer-app .drink-card,
+.customer-app .drink-card[data-category],
+.customer-app .drink-card:nth-child(2n),
+.customer-app .drink-card:nth-child(3n) {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  margin: 0 12px;
+  padding: 0;
+  overflow: hidden;
+  color: var(--after-bone);
+  background: var(--after-soot);
+  border: 0;
+  border-radius: 30px 30px 18px 18px;
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.34);
+  opacity: 0.9;
+  transform: translateY(4px);
+  transition: opacity 220ms ease, transform 260ms ease, box-shadow 260ms ease;
+}
+
+.customer-app .drink-card.is-focused {
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: 0 30px 66px rgba(0, 0, 0, 0.44);
+}
+
+.customer-app .drink-card .drink-image {
+  grid-area: 1 / 1;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  margin: 0;
+  overflow: hidden;
+  background: var(--after-soot);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.customer-app .drink-card .drink-image::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(10, 9, 8, 0.74) 0, rgba(10, 9, 8, 0.08) 30%, transparent 54%),
+    linear-gradient(180deg, transparent 62%, rgba(18, 16, 14, 0.9) 100%);
+}
+
+.customer-app .drink-card .drink-image img,
+.customer-app .drink-card.is-focused .drink-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  border-radius: 0;
+  filter: saturate(0.94) contrast(1.03) brightness(0.95);
+  transform: scale(1.008);
+  transition: transform 900ms cubic-bezier(.2, .65, .18, 1);
+}
+
+.customer-app .drink-card.is-focused .drink-image img {
+  transform: scale(1.025);
+}
+
+.customer-app .drink-card__top {
+  position: relative;
+  z-index: 2;
+  grid-area: 1 / 1;
+  align-self: start;
+  margin: 0;
+  padding: 24px 22px 0;
+  color: var(--after-bone);
+  background: transparent;
+}
+
+.customer-app .drink-card__top .overline {
+  color: rgba(212, 154, 80, 0.9);
+}
+
+.customer-app .drink-card h3 {
+  max-width: 9ch;
+  margin: 8px 0 0;
+  color: #f0e6d5;
+  font-family: var(--font-zh);
+  font-size: clamp(2.25rem, 10vw, 3.45rem);
+  font-weight: 650;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  text-shadow: 0 4px 22px rgba(0, 0, 0, 0.65);
+}
+
+.customer-app .drink-card__en {
+  margin-top: 5px;
+  color: rgba(233, 223, 205, 0.72);
+  font-family: var(--font-en);
+  font-size: 1.12rem;
+  font-style: italic;
+  font-weight: 560;
+}
+
+.customer-app .drink-card__body {
+  position: relative;
+  z-index: 3;
+  padding: 20px 20px 19px;
+  color: var(--after-bone);
+  background:
+    linear-gradient(110deg, rgba(212, 154, 80, 0.045), transparent 58%),
+    var(--after-soot);
+}
+
+.customer-app .drink-card__body::before {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  left: 20px;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, rgba(212, 154, 80, 0.7), transparent 80%);
+}
+
+.customer-app .drink-card__note {
+  margin: 0;
+  color: rgba(233, 223, 205, 0.76);
+  font-size: max(0.92rem, 15px);
+  font-weight: 500;
+  line-height: 1.72;
+}
+
+.customer-app .tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 13px;
+}
+
+.customer-app .tag-row span {
+  min-height: 25px;
+  padding: 2px 0;
+  color: rgba(233, 223, 205, 0.68);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(171, 156, 134, 0.22);
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.75rem;
+}
+
+.customer-app .drink-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 19px;
+  margin-top: 14px;
+}
+
+.customer-app .info-pill,
+.customer-app .ink-stamp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.78rem;
+}
+
+.customer-app .info-pill small {
+  color: var(--after-amber);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+.customer-app .ticket-button,
+.customer-app .primary-button,
+.customer-app .keepsake-trigger,
+.customer-app .submit-ticket-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  color: var(--after-bone);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(233, 223, 205, 0.13);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-en);
+  font-weight: 670;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.customer-app .ticket-button {
+  width: 100%;
+  margin-top: 17px;
+  padding: 12px 0 0;
+}
+
+.customer-app .ticket-button::after,
+.customer-app .primary-button::after,
+.customer-app .submit-ticket-button::after {
+  color: var(--after-amber);
+  content: "→";
+  font-size: 1.1rem;
+}
+
+.customer-app .ticket-button::before,
+.customer-app .primary-button::before {
+  display: none;
+}
+
+.customer-app .ticket-button:active,
+.customer-app .primary-button:active {
+  transform: translateX(3px);
+}
+
+/* Sheets retain the same night material and image treatment. */
+.customer-app .sheet-backdrop {
+  background: rgba(7, 6, 5, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.customer-app .detail-sheet,
+.customer-app .detail-sheet[data-category],
+.customer-app .ticket-sheet,
+.customer-app .keepsake-sheet {
+  color: var(--after-bone);
+  background: var(--after-soot);
+  border: 1px solid rgba(233, 223, 205, 0.1);
+  border-radius: 30px 30px 0 0;
+  box-shadow: 0 -28px 70px rgba(0, 0, 0, 0.58);
+  -webkit-text-fill-color: initial;
+}
+
+.customer-app .detail-sheet .close-button,
+.customer-app .ticket-sheet .close-button,
+.customer-app .keepsake-sheet .close-button {
+  color: var(--after-bone);
+  background: rgba(20, 18, 16, 0.74);
+  border: 1px solid rgba(233, 223, 205, 0.16);
+}
+
+.customer-app .detail-sheet__hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.customer-app .detail-sheet__hero .drink-image--large {
+  grid-area: 1 / 1;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  border-radius: 0;
+}
+
+.customer-app .detail-sheet__hero .drink-image--large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  border-radius: 0;
+  filter: saturate(0.92) brightness(0.88);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.customer-app .detail-sheet__hero::after {
+  z-index: 1;
+  grid-area: 1 / 1;
+  content: "";
+  background: linear-gradient(180deg, transparent 32%, rgba(29, 26, 23, 0.94));
+  pointer-events: none;
+}
+
+.customer-app .detail-sheet__hero > div:last-child {
+  position: relative;
+  z-index: 2;
+  grid-area: 1 / 1;
+  align-self: end;
+  width: 100%;
+  min-width: 0;
+  padding: 24px 22px 18px;
+}
+
+.customer-app .detail-sheet h2 {
+  color: var(--after-bone);
+  font-family: var(--font-zh);
+  font-weight: 650;
+}
+
+.customer-app .detail-en,
+.customer-app .detail-copy,
+.customer-app .detail-audience {
+  color: var(--after-muted);
+}
+
+.customer-app .detail-sheet__content {
+  padding: 6px 20px calc(24px + env(safe-area-inset-bottom));
+}
+
+.customer-app .option-section p,
+.customer-app .detail-form-row span,
+.customer-app .remark-field span {
+  color: var(--after-amber);
+}
+
+.customer-app .option-chip,
+.customer-app .quantity-picker,
+.customer-app .remark-field textarea,
+.customer-app .dealer-preview,
+.customer-app .snack-note,
+.customer-app .ticket-section,
+.customer-app .ticket-notice,
+.customer-app .submitted-ticket {
+  color: var(--after-bone);
+  background: rgba(233, 223, 205, 0.035);
+  border: 1px solid rgba(233, 223, 205, 0.12);
+  border-radius: 17px;
+}
+
+.customer-app .option-chip {
+  color: rgba(233, 223, 205, 0.7);
+}
+
+.customer-app .option-chip.is-selected {
+  color: var(--after-night);
+  background: var(--after-amber);
+  border-color: transparent;
+}
+
+.customer-app .quantity-picker button,
+.customer-app .quantity-picker span,
+.customer-app .remark-field textarea {
+  color: var(--after-bone);
+}
+
+.customer-app .remark-field textarea::placeholder {
+  color: rgba(233, 223, 205, 0.3);
+}
+
+.customer-app .primary-button,
+.customer-app .submit-ticket-button,
+.customer-app .keepsake-trigger {
+  width: 100%;
+  margin-top: 18px;
+  padding: 0;
+}
+
+/* Compact rail, visually part of the same bar surface. */
+.customer-app .order-dock {
+  right: 10px;
+  bottom: max(9px, env(safe-area-inset-bottom));
+  left: 10px;
+  min-height: 58px;
+  padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+  color: var(--after-bone);
+  background: rgba(24, 21, 19, 0.94);
+  border: 1px solid rgba(212, 154, 80, 0.24);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+}
+
+.customer-app .order-dock::before,
+.customer-app .order-dock::after {
+  display: none;
+}
+
+.customer-app .order-dock .overline,
+.customer-app .order-dock h2 {
+  color: var(--after-bone);
+}
+
+.customer-app .order-dock__right {
+  padding-left: 9px;
+  border-left: 1px solid rgba(233, 223, 205, 0.1);
+}
+
+.customer-app .order-dock .status-pill {
+  color: var(--after-muted);
+  background: transparent;
+  border: 0;
+}
+
+.customer-app .order-dock__right .ticket-stub,
+.customer-app .order-dock__right > span:not(.status-pill) {
+  min-height: 34px;
+  color: var(--after-night);
+  background: var(--after-amber);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.customer-app .status-pill--0,
+.customer-app .status-pill--1,
+.customer-app .status-pill--2,
+.customer-app .status-pill--3 {
+  color: var(--after-muted);
+  background: transparent;
+  border-color: rgba(233, 223, 205, 0.12);
+}
+
+.customer-app .status-pill--2 {
+  color: var(--after-amber);
+}
+
+.customer-app .status-pill--3,
+.customer-app .submit-error {
+  color: #b56b62;
+}
+
+.customer-app .funny-money__notes button {
+  color: var(--after-bone);
+  background: rgba(233, 223, 205, 0.035);
+  border: 1px solid rgba(233, 223, 205, 0.12);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.customer-app .funny-money__notes button.is-selected {
+  color: var(--after-night);
+  background: var(--after-amber);
+  border-color: transparent;
+  transform: translateY(-1px);
+}
+
+.customer-app .ticket-sheet__header p:not(.overline),
+.customer-app .ticket-empty,
+.customer-app .ticket-notice span,
+.customer-app .submitted-ticket li small,
+.customer-app .submitted-ticket header span {
+  color: var(--after-muted);
+}
+
+.customer-app .ticket-section__title button,
+.customer-app .order-dock__header button,
+.customer-app .order-mini__actions button {
+  color: var(--after-bone);
+  background: transparent;
+  border-color: rgba(233, 223, 205, 0.14);
+}
+
+.customer-app .site-footer {
+  color: rgba(233, 223, 205, 0.4);
+  background: var(--after-night);
+}
+
+.admin-hero__actions .close-bar-button {
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.admin-hero__actions .close-bar-button span,
+.admin-hero__actions .close-bar-button small {
+  display: block;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .customer-app .hero,
+  .customer-app .hero-poster {
+    min-height: min(74svh, 680px);
+  }
+
+  .customer-app .hero-artwork {
+    object-position: 54% 48%;
+  }
+
+  .customer-app .guest-card {
+    grid-template-columns: minmax(0, auto) minmax(120px, 1fr);
+    gap: 14px;
+  }
+
+  .customer-app .category-nav {
+    gap: 21px;
+  }
+
+  .customer-app .drink-card {
+    margin-inline: 10px;
+  }
+
+  .customer-app .drink-card__top {
+    padding: 21px 19px 0;
+  }
+
+  .customer-app .drink-card__body {
+    padding: 18px 18px 17px;
+  }
+
+  .customer-app .order-dock .status-pill {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customer-app *,
+  .customer-app *::before,
+  .customer-app *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
