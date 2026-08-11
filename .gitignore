@@ -1,8 +1,19 @@
 .DS_Store
 *.log
 .env
+.env.local
+cloudbaserc.local.json
 .env.*
 !.env.example
 node_modules/
 dist/
+dist-cloudbase/
+dist-edgeone/
+dist-qa/
+exports/
 .pnpm-store/
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*

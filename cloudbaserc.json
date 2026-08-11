@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "envId": "jimmysbar-d5grrbik0144c55a9",
+  "functionRoot": "cloudbase-functions",
+  "functions": [
+    {
+      "name": "homebar-api",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 15,
+      "memorySize": 256,
+      "installDependency": true,
+      "description": "Jimmy's Bar order API"
+    }
+  ]
+}
