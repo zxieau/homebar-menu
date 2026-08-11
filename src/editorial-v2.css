@@ -474,6 +474,13 @@
   font-size: 0.75rem;
 }
 
+.customer-app .drink-card[data-category] .tag-row span {
+  color: #c9bcaa;
+  -webkit-text-fill-color: #c9bcaa;
+  background: transparent;
+  border-color: rgba(201, 188, 170, 0.24);
+}
+
 .customer-app .drink-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -628,7 +635,19 @@
 .customer-app .detail-en,
 .customer-app .detail-copy,
 .customer-app .detail-audience {
-  color: var(--after-muted);
+  color: #c9bcaa;
+}
+
+.customer-app .drink-card[data-category] .overline,
+.customer-app .detail-sheet[data-category] .overline {
+  color: #dda45b;
+}
+
+.customer-app .drink-card[data-category] .drink-card__en,
+.customer-app .detail-sheet[data-category] .detail-en {
+  color: #d1c3af;
+  -webkit-text-fill-color: #d1c3af;
+  opacity: 1;
 }
 
 .customer-app .detail-sheet__content {
@@ -656,7 +675,7 @@
 }
 
 .customer-app .option-chip {
-  color: rgba(233, 223, 205, 0.7);
+  color: rgba(242, 233, 218, 0.84);
 }
 
 .customer-app .option-chip.is-selected {
@@ -768,6 +787,129 @@
 .customer-app .submitted-ticket li small,
 .customer-app .submitted-ticket header span {
   color: var(--after-muted);
+}
+
+/* Ticket readability: the legacy paper theme used dark ink throughout.
+   The after-dusk sheet is a dark surface, so every semantic text role needs
+   an explicit night-mode color instead of inheriting that paper ink. */
+.customer-app .ticket-sheet,
+.customer-app .ticket-sheet .ticket-section,
+.customer-app .ticket-sheet .submitted-ticket {
+  color: var(--after-bone);
+  text-shadow: none;
+}
+
+.customer-app .ticket-sheet h2,
+.customer-app .ticket-sheet h3,
+.customer-app .ticket-sheet h4,
+.customer-app .ticket-sheet .order-mini h3,
+.customer-app .ticket-sheet .submitted-ticket li > span {
+  color: #f2e9da;
+  -webkit-text-fill-color: #f2e9da;
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.24);
+}
+
+.customer-app .ticket-sheet__header p:not(.overline),
+.customer-app .ticket-sheet .order-mini p,
+.customer-app .ticket-sheet .ticket-empty,
+.customer-app .ticket-sheet .ticket-notice span,
+.customer-app .ticket-sheet .funny-money__note,
+.customer-app .ticket-sheet .funny-money__receipt,
+.customer-app .ticket-sheet .submitted-ticket li small,
+.customer-app .ticket-sheet .submitted-ticket header span {
+  color: #c9bcaa;
+  -webkit-text-fill-color: #c9bcaa;
+  opacity: 1;
+}
+
+.customer-app .ticket-sheet .ticket-section__title h3 span,
+.customer-app .ticket-sheet .submitted-ticket h3 span {
+  color: #e0a45a;
+  -webkit-text-fill-color: #e0a45a;
+  opacity: 1;
+}
+
+.customer-app .ticket-sheet .funny-money__heading h4 {
+  color: #f2e9da;
+  -webkit-text-fill-color: #f2e9da;
+}
+
+.customer-app .ticket-sheet .funny-money__clear {
+  color: #ddd1bf;
+  -webkit-text-fill-color: #ddd1bf;
+  border-color: rgba(233, 223, 205, 0.24);
+}
+
+.customer-app .ticket-sheet .funny-money__clear:disabled {
+  color: #b2a592;
+  -webkit-text-fill-color: #b2a592;
+  opacity: 1;
+}
+
+.customer-app .ticket-sheet .order-mini {
+  border-top-color: rgba(233, 223, 205, 0.14);
+}
+
+.customer-app .ticket-sheet .funny-money {
+  border-top-color: rgba(233, 223, 205, 0.14);
+}
+
+.customer-app .ticket-sheet .funny-money__notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-inline: 0;
+  padding-inline: 0;
+  overflow: visible;
+}
+
+.customer-app .ticket-sheet .funny-money__notes button {
+  min-width: 0;
+  min-height: 78px;
+  padding: 10px 12px;
+  color: #f2e9da;
+  -webkit-text-fill-color: #f2e9da;
+  background: rgba(233, 223, 205, 0.045);
+  border-color: rgba(233, 223, 205, 0.16);
+  border-radius: 14px;
+  transform: none;
+}
+
+.customer-app .ticket-sheet .funny-money__notes button:nth-child(even) {
+  transform: none;
+}
+
+.customer-app .ticket-sheet .funny-money__notes button small {
+  color: #d2c5b3;
+  -webkit-text-fill-color: #d2c5b3;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.customer-app .ticket-sheet .funny-money__notes button > span {
+  color: #f0b869;
+  -webkit-text-fill-color: #f0b869;
+}
+
+.customer-app .ticket-sheet .funny-money__notes button.is-selected {
+  color: var(--after-night);
+  -webkit-text-fill-color: var(--after-night);
+  background: var(--after-amber);
+  border-color: transparent;
+  transform: translateY(-1px);
+}
+
+.customer-app .ticket-sheet .funny-money__notes button.is-selected > span,
+.customer-app .ticket-sheet .funny-money__notes button.is-selected small {
+  color: var(--after-night);
+  -webkit-text-fill-color: var(--after-night);
+}
+
+.customer-app .ticket-sheet .submit-ticket-button {
+  color: #f2e9da;
+  -webkit-text-fill-color: #f2e9da;
+  border-top-color: rgba(233, 223, 205, 0.12);
 }
 
 .customer-app .ticket-section__title button,
