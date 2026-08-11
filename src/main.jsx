@@ -5,7 +5,7 @@ import "@fontsource-variable/cormorant-garamond/wght-italic.css";
 import "@fontsource-variable/noto-serif-sc/wght.css";
 import App from "./App.jsx";
 import "./styles.css";
-import "./editorial.css";
+import "./editorial-v2.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

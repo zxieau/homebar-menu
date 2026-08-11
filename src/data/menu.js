@@ -86,7 +86,7 @@ export const drinks = [
     audience: "适合想要第一杯就进入状态的人。",
     tags: ["酸甜柔和", "圆润", "泡沫"],
     note: "黄柠檬把波本的木质香擦亮，入口圆润，酸甜收得干净。",
-    image: "assets/images/whiskey-sour.jpg",
+    image: "assets/editorial-v2/whiskey-sour.webp",
     fallbackImage: "assets/images/vintage/whiskey-sour.webp",
     sweetness: true,
     available: true
@@ -103,7 +103,7 @@ export const drinks = [
     audience: "适合喜欢干净、利落、酸甜平衡的人。",
     tags: ["清新", "利落", "青柠"],
     note: "白朗姆和青柠的直接组合，清爽、干净，不绕弯。",
-    image: "assets/images/classic-daiquiri.jpg",
+    image: "assets/editorial-v2/classic-daiquiri.webp",
     fallbackImage: "assets/images/vintage/classic-daiquiri.webp",
     sweetness: true,
     available: true
@@ -120,7 +120,7 @@ export const drinks = [
     audience: "适合喜欢清冷草本感的人。",
     tags: ["草本", "青柠", "清冽"],
     note: "金酒的杜松草本感更明显，青柠让整体变得锋利清楚。",
-    image: "assets/images/classic-gimlet.jpg",
+    image: "assets/editorial-v2/classic-gimlet.webp",
     fallbackImage: "assets/images/vintage/classic-gimlet.webp",
     sweetness: true,
     available: true
@@ -137,7 +137,7 @@ export const drinks = [
     audience: "适合想喝得轻盈、漂亮一点的人。",
     tags: ["橙香", "轻盈", "柔和"],
     note: "金酒、橙酒和柠檬的组合，香气优雅，酒体轻盈。",
-    image: "assets/images/white-lady.jpg",
+    image: "assets/editorial-v2/white-lady.webp",
     fallbackImage: "assets/images/vintage/white-lady.webp",
     sweetness: true,
     available: true
@@ -154,7 +154,7 @@ export const drinks = [
     audience: "适合喜欢微咸、微酸和龙舌兰香气的人。",
     tags: ["盐边", "明快", "微咸"],
     note: "龙舌兰、橙酒和青柠，盐边把酸味和酒香提得更清楚。",
-    image: "assets/images/classic-margarita.jpg",
+    image: "assets/editorial-v2/classic-margarita.webp",
     fallbackImage: "assets/images/vintage/classic-margarita.webp",
     sweetness: true,
     available: true
@@ -171,7 +171,7 @@ export const drinks = [
     audience: "适合边聊天边慢慢喝的人。",
     tags: ["气泡", "清爽", "轻松"],
     note: "金酒、汤力水和青柠，冰块足，气泡感清楚。",
-    image: "assets/images/gin-tonic.jpg",
+    image: "assets/editorial-v2/gin-tonic.webp",
     fallbackImage: "assets/images/vintage/gin-tonic.webp",
     sweetness: false,
     available: true
@@ -188,7 +188,7 @@ export const drinks = [
     audience: "适合今晚不想太清醒的人。",
     tags: ["后劲", "酸甜", "长饮"],
     note: "看起来轻松，酒感其实很足。适合慢一点喝。",
-    image: "assets/images/long-island-iced-tea.jpg",
+    image: "assets/editorial-v2/long-island-iced-tea.webp",
     fallbackImage: "assets/images/vintage/long-island-iced-tea.webp",
     sweetness: false,
     available: true
@@ -205,7 +205,7 @@ export const drinks = [
     audience: "适合想要干净、直接、醒神的一杯。",
     tags: ["冰冷", "直接", "酸感"],
     note: "伏特加打底，青柠和橙香负责把酸感拉出来。",
-    image: "assets/images/kamikaze.jpg",
+    image: "assets/editorial-v2/kamikaze.webp",
     fallbackImage: "assets/images/vintage/kamikaze.webp",
     sweetness: false,
     available: true
@@ -222,7 +222,7 @@ export const drinks = [
     audience: "适合想慢慢喝、酒感明显的人。",
     tags: ["经典", "苦甜", "慢饮"],
     note: "糖、苦精、橙皮和波本，酒感厚，余味更长。",
-    image: "assets/images/old-fashioned.jpg",
+    image: "assets/editorial-v2/old-fashioned.webp",
     fallbackImage: "assets/images/vintage/old-fashioned.webp",
     sweetness: false,
     available: true
@@ -240,7 +240,7 @@ export const drinks = [
     audience: "适合先来一口，等第一杯酒慢慢出场。",
     tags: ["热乎", "咸香", "下酒"],
     note: "炸得脆一点，配一点酱，适合所有人边聊边拿。",
-    image: "assets/images/fries.jpg",
+    image: "assets/editorial-v2/fries.webp",
     fallbackImage: "assets/images/vintage/fries.webp",
     sweetness: false,
     available: true,
@@ -265,7 +265,7 @@ export const drinks = [
     audience: "适合有人喊饿，但还想继续喝的人。",
     tags: ["酥脆", "一口", "热食"],
     note: "小块鸡米花，热的时候最好吃，旁边放一小碟蘸酱。",
-    image: "assets/images/popcorn-chicken.jpg",
+    image: "assets/editorial-v2/popcorn-chicken.webp",
     fallbackImage: "assets/images/vintage/popcorn-chicken.webp",
     sweetness: false,
     available: true,
@@ -290,7 +290,7 @@ export const drinks = [
     audience: "适合不想吃太正式，只想桌上有点东西的人。",
     tags: ["薯片", "膨化", "分享"],
     note: "薯片、虾片、膨化圈这类轻松小零食，随手拼一小盘就很适合聊天。",
-    image: "assets/images/bar-snacks.jpg",
+    image: "assets/editorial-v2/bar-snacks.webp",
     fallbackImage: "assets/images/vintage/bar-snacks.webp",
     sweetness: false,
     available: true,
@@ -315,7 +315,7 @@ export const drinks = [
     audience: "适合今晚不想做选择，但想喝一杯专属的人。",
     tags: ["神秘", "专属", "特调"],
     note: "选一个基酒和一个风味方向，吧台会给你变出一杯今晚限定。",
-    image: "assets/images/dealer-choice.jpg",
+    image: "assets/editorial-v2/dealer-choice.webp",
     fallbackImage: "assets/images/vintage/dealer-choice.webp",
     sweetness: false,
     available: true
